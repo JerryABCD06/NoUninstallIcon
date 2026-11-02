@@ -103,3 +103,4 @@ menu.open_target=打开指向的文件的位置
 autostart.portable_note=便携模式：启用后会在便携目录之外创建登录任务
 toast.watchOn=将会监听并实时隐藏被软件的安装等行为恢复显示的图标，重新启动设备或重启本工具后生效。
 toast.onceOn=将会在每次登录时自动执行一次隐藏，完成后退出。
+autostart.silent=持续监视（无托盘）

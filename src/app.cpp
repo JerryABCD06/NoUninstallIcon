@@ -355,7 +355,8 @@ int App::RunGui(int showCommand)
         store_.Settings().autostart = mode;
         store_.Save();
         window_.SetAutostartMode(mode);
-        if (mode == AutostartMode::Watch) window_.ShowToast(i18n::T(L"toast.watchOn"), false);
+        if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
+            window_.ShowToast(i18n::T(L"toast.watchOn"), false);
         if (mode == AutostartMode::Once) window_.ShowToast(i18n::T(L"toast.onceOn"), false);
         if (mode == AutostartMode::Off) window_.ShowToast(i18n::T(L"error.task_removed"), false);
     };

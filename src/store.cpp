@@ -122,6 +122,7 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
             {
                 if (fields[2] == L"once") parsedSettings.autostart = AutostartMode::Once;
                 else if (fields[2] == L"watch") parsedSettings.autostart = AutostartMode::Watch;
+    else if (fields[2] == L"silent") parsedSettings.autostart = AutostartMode::Silent;
                 else parsedSettings.autostart = AutostartMode::Off;
             }
             continue;
@@ -188,6 +189,7 @@ bool Store::Save()
     const wchar_t* mode = L"off";
     if (settings_.autostart == AutostartMode::Once) mode = L"once";
     else if (settings_.autostart == AutostartMode::Watch) mode = L"watch";
+    else if (settings_.autostart == AutostartMode::Silent) mode = L"silent";
     output += std::wstring(L"S\tautostart\t") + mode + L"\r\n";
 
     for (const auto& record : records_)

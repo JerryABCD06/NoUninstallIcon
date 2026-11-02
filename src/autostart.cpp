@@ -185,7 +185,7 @@ bool InstallAutostart(AutostartMode mode)
     }
     Bstr exePath(GetExePath());
     exec->put_Path(exePath);
-    Bstr arguments(mode == AutostartMode::Watch ? L"--background" : L"--apply");
+    Bstr arguments(mode == AutostartMode::Once ? L"--apply" : (mode == AutostartMode::Silent ? L"--background --no-tray" : L"--background"));
     exec->put_Arguments(arguments);
 
     ComPtr<ITaskSettings> settings;
@@ -195,7 +195,7 @@ bool InstallAutostart(AutostartMode mode)
         settings->put_DisallowStartIfOnBatteries(VARIANT_FALSE);
         settings->put_StopIfGoingOnBatteries(VARIANT_FALSE);
         settings->put_MultipleInstances(TASK_INSTANCES_IGNORE_NEW);
-        Bstr limit(mode == AutostartMode::Watch ? L"PT0S" : L"PT10M");
+        Bstr limit(mode == AutostartMode::Once ? L"PT10M" : L"PT0S");
         settings->put_ExecutionTimeLimit(limit);
     }
 
@@ -220,7 +220,7 @@ bool InstallAutostart(AutostartMode mode)
         Fail(L"RegisterTaskDefinition", hr);
         return false;
     }
-    LogLineF(L"Autostart task installed (%s)", mode == AutostartMode::Watch ? L"watch" : L"once");
+    LogLineF(L"Autostart task installed (%s)", mode == AutostartMode::Once ? L"once" : (mode == AutostartMode::Silent ? L"silent" : L"watch"));
     return true;
 }
 

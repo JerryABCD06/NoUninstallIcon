@@ -68,6 +68,7 @@ std::wstring ModeLabel(AutostartMode mode)
     {
     case AutostartMode::Once: return i18n::T(L"autostart.once");
     case AutostartMode::Watch: return i18n::T(L"autostart.watch");
+    case AutostartMode::Silent: return i18n::T(L"autostart.silent");
     default: return i18n::T(L"autostart.off");
     }
 }
@@ -453,7 +454,7 @@ void MainWindow::RefreshText()
     // Size the combo to the widest of the three modes so switching does not
     // make the footer jump around.
     float modeWidth = 0.0f;
-    for (const wchar_t* text : {i18n::T(L"autostart.off"), i18n::T(L"autostart.once"), i18n::T(L"autostart.watch")})
+    for (const wchar_t* text : {i18n::T(L"autostart.off"), i18n::T(L"autostart.once"), i18n::T(L"autostart.watch"), i18n::T(L"autostart.silent")})
         modeWidth = std::max(modeWidth, painter_.TextWidth(text, labelFormat, 320.0f));
     autostartComboWidth_ = modeWidth + 34.0f;
 
@@ -1673,11 +1674,12 @@ void MainWindow::CycleFocus(bool backwards)
 
 void MainWindow::CycleAutostart(int delta)
 {
-    const AutostartMode modes[] = {AutostartMode::Off, AutostartMode::Once, AutostartMode::Watch};
+    const AutostartMode modes[] = {AutostartMode::Off, AutostartMode::Once, AutostartMode::Watch, AutostartMode::Silent};
+    const int count = static_cast<int>(sizeof(modes) / sizeof(modes[0]));
     int index = 0;
-    for (int i = 0; i < 3; ++i)
+    for (int i = 0; i < count; ++i)
         if (modes[i] == autostart_) index = i;
-    index = (index + delta + 3) % 3;
+    index = (index + delta + count) % count;
     SetAutostartMode(modes[index]);
     if (callbacks.autostartChanged) callbacks.autostartChanged(modes[index]);
 }
@@ -1942,9 +1944,10 @@ void MainWindow::ShowAutostartMenu()
     ClientToScreen(hwnd_, &point);
 
     HMENU menu = CreatePopupMenu();
-    const AutostartMode modes[] = {AutostartMode::Off, AutostartMode::Once, AutostartMode::Watch};
-    const wchar_t* labels[] = {i18n::T(L"autostart.off"), i18n::T(L"autostart.once"), i18n::T(L"autostart.watch")};
-    for (int i = 0; i < 3; ++i)
+    const AutostartMode modes[] = {AutostartMode::Off, AutostartMode::Once, AutostartMode::Watch, AutostartMode::Silent};
+    const wchar_t* labels[] = {i18n::T(L"autostart.off"), i18n::T(L"autostart.once"), i18n::T(L"autostart.watch"), i18n::T(L"autostart.silent")};
+    const int count = static_cast<int>(sizeof(modes) / sizeof(modes[0]));
+    for (int i = 0; i < count; ++i)
     {
         UINT flags = MF_STRING;
         if (autostart_ == modes[i]) flags |= MF_CHECKED;

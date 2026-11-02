@@ -20,6 +20,7 @@ enum class AutostartMode
     Off,
     Once,
     Watch,
+    Silent,  // watch without a tray icon
 };
 
 struct ShortcutItem
