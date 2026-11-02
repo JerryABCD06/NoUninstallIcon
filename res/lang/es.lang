@@ -1,0 +1,108 @@
+lang.native_name=Español
+lang.code=es
+lang.system=Sistema
+
+app.title=No necesito el icono de desinstalación
+app.subtitle=Ocultar accesos directos del menú Inicio
+
+search.placeholder=Buscar nombre o ruta
+search.clear=Borrar
+
+group.uninstall=Entradas de desinstalación
+group.other=Otros accesos directos
+group.items={0} elementos
+
+toggle.autostart=Ocultar automáticamente al iniciar sesión
+autostart.mode=Modo
+autostart.off=Desactivado
+autostart.once=Una vez al iniciar sesión
+autostart.watch=Vigilar continuamente
+autostart.hint.once=Aplica la lista una vez por sesión y luego se cierra.
+autostart.hint.watch=Permanece en segundo plano y vuelve a aplicar al instante.
+
+status.summary={0} accesos · {1} ocultos por esta herramienta · {2} ocultos de otra forma
+status.loading=Analizando el menú Inicio…
+status.empty=No se encontró ningún acceso directo.
+
+badge.user=Usuario
+badge.machine=Todos los usuarios
+badge.external=Oculto de otra forma
+
+action.rescan=Analizar de nuevo
+action.hide_group=Ocultar todo
+action.unhide_group=Mostrar todo el grupo
+action.restore_all=Restaurar todo
+action.open_location=Abrir ubicación del archivo
+action.copy_path=Copiar ruta
+
+toast.hidden={0} ocultados
+toast.unhidden={0} restaurados
+toast.failed={0} no se pudieron cambiar
+toast.undo=Deshacer
+
+toast.hiddenItem=«{0}» ya no aparecerá en el menú Inicio.
+toast.shownItem=«{0}» vuelve a aparecer en el menú Inicio.
+toast.stillHiddenItem=Esta herramienta ya no oculta «{0}», pero algo más lo sigue ocultando.
+
+empty.search=Ningún resultado para «{0}»
+hint.keys=Espacio alterna · Intro abre la ubicación del archivo
+
+error.elevation=Cambiar accesos directos de todos los usuarios requiere permisos de administrador.
+error.store=No se pudo escribir el archivo de estado.
+error.task=No se pudo crear la tarea de inicio de sesión.
+error.task_removed=La tarea de inicio de sesión se ha eliminado.
+
+confirm.restore_all=¿Restaurar todos los accesos directos ocultos por esta herramienta?
+confirm.hide_group=¿Ocultar los {0} accesos directos de este grupo?
+
+tray.show=Abrir
+tray.quit=Salir
+
+about.button=Acerca de
+about.title=Acerca de
+about.free=Este es software libre.
+about.license=Publicado bajo la licencia MIT.
+about.author=Autor: 
+about.ok=Aceptar
+about.author_name=Wang Yunzheng
+
+edit.cut=Cortar
+edit.copy=Copiar
+edit.paste=Pegar
+edit.select_all=Seleccionar todo
+edit.clear=Borrar
+
+a11y.app=No necesito el icono de desinstalación
+a11y.search=Buscar accesos directos
+a11y.rescan=Analizar de nuevo
+a11y.restoreAll=Restaurar todos los accesos directos ocultos por esta herramienta
+a11y.hideGroup=Ocultar todas las entradas de desinstalación de la lista
+a11y.autostart=Ocultar automáticamente al iniciar sesión
+a11y.language=Idioma
+a11y.about=Acerca de
+a11y.list=Accesos directos del menú Inicio
+a11y.item.hidden=Oculto
+a11y.item.visible=No oculto
+a11y.item.external=Oculto de otra forma
+a11y.group.uninstall=Entradas de desinstalación
+a11y.group.other=Otros accesos directos
+a11y.state.hidden=oculto
+a11y.state.visible=no oculto
+a11y.state.external=oculto de otra forma
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} oculto. Ya no aparece en el menú Inicio.
+a11y.announce.shown={0} mostrado. Vuelve a aparecer en el menú Inicio.
+a11y.announce.stillHidden=Esta herramienta ya no oculta {0}, pero sigue oculto de otra forma.
+a11y.aboutDialog=Acerca de
+a11y.aboutBody=Este es software libre. Publicado bajo la licencia MIT. Autor: Wang Yunzheng.
+a11y.aboutLink=Abrir el perfil del autor: github.com/JerryABCD06
+a11y.emptySearch=Ningún acceso directo coincide con «{0}»
+a11y.emptyList=No se encontró ningún acceso directo
+
+menu.hide=Ocultar
+menu.show=Mostrar
+menu.open_shortcut=Abrir ubicación del acceso directo
+menu.open_target=Abrir ubicación del destino
+
+autostart.portable_note=Modo portable: crea una tarea de inicio de sesión fuera de esta carpeta

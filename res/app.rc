@@ -9,6 +9,7 @@
 #define IDR_LANG_JA      104
 #define IDR_LANG_DE      105
 #define IDR_LANG_FR      106
+#define IDR_LANG_ES      107
 
 1 ICON "app.ico"
 
@@ -19,6 +20,7 @@ IDR_LANG_ZH_HANT RCDATA "lang\\zh-Hant.lang"
 IDR_LANG_JA      RCDATA "lang\\ja.lang"
 IDR_LANG_DE      RCDATA "lang\\de.lang"
 IDR_LANG_FR      RCDATA "lang\\fr.lang"
+IDR_LANG_ES      RCDATA "lang\\es.lang"
 
 1 VERSIONINFO
 FILEVERSION     1,0,0,0
