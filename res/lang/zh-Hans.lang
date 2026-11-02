@@ -94,3 +94,5 @@ a11y.announce.stillHidden=本工具不再隐藏 {0}，但它仍被其他方式�
 a11y.aboutDialog=关于
 a11y.aboutBody=本软件是自由软件。本软件采用 MIT 许可证发布。作者：王云正。
 a11y.aboutLink=打开作者主页：github.com/JerryABCD06
+a11y.emptySearch=没有匹配「{0}」的快捷方式
+a11y.emptyList=没有找到任何快捷方式

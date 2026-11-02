@@ -94,3 +94,5 @@ a11y.announce.stillHidden=このツールは {0} を隠さなくなりました�
 a11y.aboutDialog=このアプリについて
 a11y.aboutBody=本ソフトウェアは自由ソフトウェアです。MIT ライセンスで公開されています。作者：王雲正。
 a11y.aboutLink=作者のページを開く：github.com/JerryABCD06
+a11y.emptySearch=「{0}」に一致するショートカットはありません
+a11y.emptyList=ショートカットが見つかりません

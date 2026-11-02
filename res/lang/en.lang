@@ -94,3 +94,5 @@ a11y.announce.stillHidden=This tool no longer hides {0}, but something else stil
 a11y.aboutDialog=About
 a11y.aboutBody=This is free software. It is released under the MIT License. Author: Wang Yunzheng.
 a11y.aboutLink=Open the author profile: github.com/JerryABCD06
+a11y.emptySearch=No shortcut matches "{0}"
+a11y.emptyList=No shortcuts were found

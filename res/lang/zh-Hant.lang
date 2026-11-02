@@ -94,3 +94,5 @@ a11y.announce.stillHidden=本工具不再隱藏 {0}，但它仍被其他方式�
 a11y.aboutDialog=關於
 a11y.aboutBody=本軟體是自由軟體。本軟體採用 MIT 授權條款發布。作者：王雲正。
 a11y.aboutLink=開啟作者首頁：github.com/JerryABCD06
+a11y.emptySearch=沒有符合「{0}」的捷徑
+a11y.emptyList=找不到任何捷徑
