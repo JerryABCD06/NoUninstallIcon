@@ -88,6 +88,7 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
 {
     std::string raw;
     bool sawSetting = false;
+    bool sawAutostart = false;
     if (!ReadWholeFile(file, raw)) return false;
 
     std::wstring content = Widen(raw);
@@ -119,6 +120,7 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
         if (fields[0] == L"S" && fields.size() >= 3)
         {
             sawSetting = true;
+            if (fields[1] == L"autostart") sawAutostart = true;
             if (fields[1] == L"language") parsedSettings.language = Unescape(fields[2]);
             else if (fields[1] == L"autostart")
             {
@@ -143,9 +145,9 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
         if (!record.key.empty() && !record.path.empty()) parsed.push_back(std::move(record));
     }
 
+    if (!sawAutostart) return false;  // a state without its autostart line was cut short
     records = std::move(parsed);
     settings = parsedSettings;
-    if (!sawSetting) return false;  // header alone means the write was cut short
     return true;
 }
 
@@ -160,6 +162,8 @@ bool Store::Load()
 {
     records_.clear();
     settings_ = AppSettings{};
+    readOnly_ = false;
+    loadedFromBackup_ = false;
 
     std::wstring path = StateFilePath();
     if (!PathFileExistsW(path.c_str()))
@@ -182,6 +186,7 @@ bool Store::Load()
     if (ParseStateFile(path + L".bak", records_, settings_))
     {
         LogLineF(L"Recovered %d record(s) from backup", static_cast<int>(records_.size()));
+        loadedFromBackup_ = true;
         return true;
     }
 
@@ -233,9 +238,9 @@ bool Store::Save()
     if (file == INVALID_HANDLE_VALUE) return false;
     DWORD written = 0;
     const BOOL wrote = WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr);
-    FlushFileBuffers(file);
+    const BOOL flushed = FlushFileBuffers(file);
     CloseHandle(file);
-    if (!wrote || written != bytes.size())
+    if (!wrote || !flushed || written != bytes.size())
     {
         DeleteFileW(temp.c_str());
         return false;
@@ -244,9 +249,12 @@ bool Store::Save()
     // Only demote a primary we actually loaded: if the good data came from the
     // backup, copying the damaged primary over it would destroy the last copy.
     if (!loadedFromBackup_ && PathFileExistsW(path.c_str()))
-        CopyFileW(path.c_str(), (path + L".bak").c_str(), FALSE);
+    {
+        if (!CopyFileW(path.c_str(), (path + L".bak").c_str(), FALSE))
+            LogLineF(L"Backup not refreshed, keeping the old one (err=%lu)", GetLastError());
+    }
 
-    if (!MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING))
+    if (!MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH))
     {
         DeleteFileW(temp.c_str());
         return false;

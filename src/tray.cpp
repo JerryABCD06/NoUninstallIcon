@@ -95,7 +95,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
     if (message == kCallbackMessage)
     {
         POINT anchor{};
-        if (wparam)
+        if (gVersion4 && wparam)  // before v4 this is the icon id, not a point
         {
             anchor.x = static_cast<short>(LOWORD(wparam));
             anchor.y = static_cast<short>(HIWORD(wparam));
@@ -121,7 +121,11 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
     {
         // Explorer restarted and dropped the icon; put it back.
         LogLineF(L"tray: shell restarted, re-adding");
-        if (gDesiredVisible) AddIcon();
+        if (gDesiredVisible)
+        {
+            gIconVisible = false;  // so a later SetVisible can try again
+            AddIcon();
+        }
         return 0;
     }
 
@@ -132,6 +136,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
 
 bool tray::Start(HINSTANCE instance, const std::wstring& tooltip, bool visible, Callbacks callbacks)
 {
+    if (gWindow) return true;
     gCallbacks = std::move(callbacks);
     gDesiredVisible = visible;
 

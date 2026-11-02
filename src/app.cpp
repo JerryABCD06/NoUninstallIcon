@@ -149,7 +149,7 @@ void App::HandleToggle(int itemIndex, bool hidden)
         StoredRecord* record = store_.Find(item.key);
         bool originallyHidden = record && (record->originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
         ApplyStatus status = SetShortcutHidden(item.path, originallyHidden);
-        if (status == ApplyStatus::Missing || status == ApplyStatus::Ok)
+        if (status == ApplyStatus::Ok)
         {
             store_.Erase(item.key);
             item.managed = false;
@@ -241,7 +241,7 @@ void App::HandleHideGroup(bool hide)
         {
             StoredRecord* record = store_.Find(item.key);
             bool originallyHidden = record && (record->originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
-            if (SetShortcutHidden(item.path, originallyHidden) != ApplyStatus::Failed)
+            if (SetShortcutHidden(item.path, originallyHidden) == ApplyStatus::Ok)
             {
                 store_.Erase(item.key);
                 item.managed = false;
@@ -558,6 +558,11 @@ int App::RunCleanup()
 {
     // Uninstalling must leave nothing running: tell the watcher the mode is off
     // and wait for it to go, so it cannot re-hide shortcuts during the restore.
+    // Persist Off as well: cleanup runs before the uninstaller deletes the
+    // executable, and a stored Watch would recreate the task on a later launch.
+    store_.Settings().autostart = AutostartMode::Off;
+    store_.Save();
+
     session::Publish(static_cast<int>(AutostartMode::Off));
     for (int tick = 0; tick < 40; ++tick)
     {
@@ -574,12 +579,19 @@ int App::RunCleanup()
 int App::RunWatch(bool showTray)
 {
     // Only one watcher may run; the sign-in task normally owns it.
+    SetLastError(0);
     HANDLE slot = CreateMutexW(nullptr, FALSE, L"Local\\NoUninstallIcon.Background");
-    if (slot && GetLastError() == ERROR_ALREADY_EXISTS)
+    const DWORD slotError = GetLastError();
+    if (!slot || slotError == ERROR_ALREADY_EXISTS)
     {
-        CloseHandle(slot);
+        // NULL means we could not tell (access denied between integrity levels),
+        // and starting a second watcher is worse than not starting one.
+        if (slot) CloseHandle(slot);
+        LogLineF(L"watcher: not starting (err=%lu)", slotError);
         return 0;
     }
+    // Read the mode once, before the worker threads start touching the store.
+    const bool initialTray = showTray && store_.Settings().autostart == AutostartMode::Watch;
 
     ApplyDesired(true);
 
@@ -675,8 +687,7 @@ int App::RunWatch(bool showTray)
             }
             PostQuitMessage(0);
         };
-        if (tray::Start(instance_, i18n::T(L"app.title"), showTray && store_.Settings().autostart == AutostartMode::Watch, callbacks))
-            tray::SetVisible(showTray && store_.Settings().autostart == AutostartMode::Watch);
+        tray::Start(instance_, i18n::T(L"app.title"), initialTray, callbacks);
     }
 
     // The watcher adjusts itself when the mode is published: no restart, so the
@@ -693,7 +704,6 @@ int App::RunWatch(bool showTray)
         {
             LogLineF(L"watcher: wait failed err=%lu", GetLastError());
             std::this_thread::sleep_for(std::chrono::milliseconds(200));
-            continue;
         }
         if (changeEvent && wait == WAIT_OBJECT_0)
         {
