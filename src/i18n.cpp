@@ -99,7 +99,13 @@ bool LoadResource(int resourceId, Table& table)
         size_t eq = trimmed.find(L'=');
         if (eq == std::wstring::npos) continue;
         std::wstring key = Trim(trimmed.substr(0, eq));
-        std::wstring value = Unescape(Trim(trimmed.substr(eq + 1)));
+
+        // Only leading whitespace is stripped: a value may legitimately end
+        // with a space ("Author: ") and that space has to survive.
+        std::wstring rawValue = trimmed.substr(eq + 1);
+        size_t firstNonSpace = rawValue.find_first_not_of(L" \t");
+        rawValue = firstNonSpace == std::wstring::npos ? std::wstring() : rawValue.substr(firstNonSpace);
+        std::wstring value = Unescape(rawValue);
         if (!key.empty()) table[key] = value;
     }
     return true;

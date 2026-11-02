@@ -219,6 +219,10 @@ private:
     float autostartLabelWidth_ = 150.0f;
     float autostartComboWidth_ = 150.0f;
     float aboutButtonWidth_ = 72.0f;
+    float rescanWidth_ = 96.0f;
+    float restoreAllWidth_ = 140.0f;
+    float dialogWidth_ = 440.0f;
+    float dialogOkWidth_ = 88.0f;
 
     float scale_ = 1.0f;
     int clientWidth_ = 0;

@@ -420,6 +420,26 @@ void MainWindow::RefreshText()
     IDWriteTextFormat* aboutFormat = painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL);
     aboutButtonWidth_ = painter_.TextWidth(i18n::T(L"about.button"), aboutFormat, 260.0f) + 44.0f;
 
+    // Toolbar buttons size themselves to their label so a longer translation
+    // does not leave one button visibly wider than the other.
+    rescanWidth_ = std::max(72.0f, painter_.TextWidth(i18n::T(L"action.rescan"), aboutFormat, 320.0f) + 24.0f);
+    restoreAllWidth_ = std::max(72.0f, painter_.TextWidth(i18n::T(L"action.restore_all"), aboutFormat, 320.0f) + 24.0f);
+
+    // The About card grows with its longest line instead of clipping it.
+    {
+        IDWriteTextFormat* titleFormat = painter_.Format(20.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD,
+                                                         L"Segoe UI Variable Display");
+        IDWriteTextFormat* bodyFormat = painter_.Format(13.0f, DWRITE_FONT_WEIGHT_NORMAL);
+        float titleWidth = painter_.TextWidth(i18n::T(L"about.title"), titleFormat, 640.0f);
+        float freeWidth = painter_.TextWidth(i18n::T(L"about.free"), bodyFormat, 640.0f);
+        float licenseWidth = painter_.TextWidth(i18n::T(L"about.license"), bodyFormat, 640.0f);
+        float authorWidth = painter_.TextWidth(i18n::T(L"about.author"), bodyFormat, 320.0f) +
+                            painter_.TextWidth(i18n::T(L"about.author_name"), bodyFormat, 320.0f) + 6.0f;
+        float widest = std::max(std::max(titleWidth, freeWidth), std::max(licenseWidth, authorWidth));
+        dialogWidth_ = std::min(640.0f, std::max(440.0f, widest + 2.0f * kPad));
+        dialogOkWidth_ = std::max(88.0f, painter_.TextWidth(i18n::T(L"about.ok"), bodyFormat, 240.0f) + 32.0f);
+    }
+
     Invalidate();
 }
 
@@ -442,8 +462,8 @@ MainWindow::Layout MainWindow::ComputeLayout() const
                              layout.search.bottom);
 
     float rightEdge = width - kPad;
-    layout.rescan = Rect(rightEdge - 108.0f, kToolbarTop, rightEdge, kToolbarTop + kToolbarHeight);
-    layout.restoreAll = Rect(layout.rescan.left - 8.0f - 176.0f, kToolbarTop, layout.rescan.left - 8.0f,
+    layout.rescan = Rect(rightEdge - rescanWidth_, kToolbarTop, rightEdge, kToolbarTop + kToolbarHeight);
+    layout.restoreAll = Rect(layout.rescan.left - 8.0f - restoreAllWidth_, kToolbarTop, layout.rescan.left - 8.0f,
                              kToolbarTop + kToolbarHeight);
 
     layout.list = Rect(0.0f, 136.0f, width, height - kFooterHeight);
@@ -466,11 +486,11 @@ MainWindow::Layout MainWindow::ComputeLayout() const
 
     layout.aboutButton = Rect(width - kPad - aboutButtonWidth_, 12.0f, width - kPad, 48.0f);
 
-    const float dialogWidth = 440.0f;
+    const float dialogWidth = dialogWidth_;
     const float dialogHeight = 232.0f;
     layout.dialogCard = Rect((width - dialogWidth) * 0.5f, (height - dialogHeight) * 0.5f,
                              (width + dialogWidth) * 0.5f, (height + dialogHeight) * 0.5f);
-    layout.dialogOk = Rect(layout.dialogCard.right - kPad - 88.0f, layout.dialogCard.bottom - kPad - 32.0f,
+    layout.dialogOk = Rect(layout.dialogCard.right - kPad - dialogOkWidth_, layout.dialogCard.bottom - kPad - 32.0f,
                            layout.dialogCard.right - kPad, layout.dialogCard.bottom - kPad);
     return layout;
 }
@@ -673,12 +693,25 @@ void MainWindow::DrawGroupHeader(const D2D1_RECT_F& rect, int group, bool sticky
     const wchar_t* title = group == 0 ? i18n::T(L"group.uninstall") : i18n::T(L"group.other");
     int count = group == 0 ? (model_ ? model_->uninstallTotal : 0) : (model_ ? model_->otherTotal : 0);
 
-    D2D1_RECT_F textRect = Rect(rect.left + kCheckLeft, rect.top, rect.right - 160.0f, rect.bottom);
+    // Reserve exactly what the count and the action need, so a longer
+    // translation cannot run into the group title.
+    IDWriteTextFormat* countFormat = painter_.Format(11.5f, DWRITE_FONT_WEIGHT_NORMAL);
+    float countWidth = painter_.TextWidth(i18n::Tf(L"group.items", {std::to_wstring(count)}), countFormat, 260.0f);
+    float actionWidth = 0.0f;
+    if (group == 0)
+    {
+        const wchar_t* actionLabel = AllUninstallHidden() ? i18n::T(L"action.unhide_group")
+                                                          : i18n::T(L"action.hide_group");
+        actionWidth = painter_.TextWidth(actionLabel, painter_.Format(11.5f, DWRITE_FONT_WEIGHT_SEMI_BOLD), 260.0f) +
+                      24.0f;
+    }
+    float reserve = countWidth + actionWidth + 28.0f;
+
+    D2D1_RECT_F textRect = Rect(rect.left + kCheckLeft, rect.top, rect.right - reserve, rect.bottom);
     painter_.Text(title, painter_.Format(12.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD), textRect, theme_.textDim);
 
-    D2D1_RECT_F countRect = Rect(rect.right - 160.0f, rect.top, rect.right - kPad, rect.bottom);
-    painter_.Text(i18n::Tf(L"group.items", {std::to_wstring(count)}),
-                  painter_.Format(11.5f, DWRITE_FONT_WEIGHT_NORMAL), countRect, theme_.textFaint,
+    D2D1_RECT_F countRect = Rect(rect.right - reserve, rect.top, rect.right - kPad, rect.bottom);
+    painter_.Text(i18n::Tf(L"group.items", {std::to_wstring(count)}), countFormat, countRect, theme_.textFaint,
                   DWRITE_TEXT_ALIGNMENT_TRAILING);
 
     if (group == 0)
@@ -1903,7 +1936,11 @@ D2D1_RECT_F MainWindow::AboutLinkRect(const Layout& layout)
     IDWriteTextFormat* format = painter_.Format(13.0f, DWRITE_FONT_WEIGHT_NORMAL);
     float labelWidth = painter_.TextWidth(i18n::T(L"about.author"), format, 200.0f);
     float nameWidth = painter_.TextWidth(i18n::T(L"about.author_name"), format, 300.0f);
-    return Rect(left + labelWidth, card.top + 118.0f, left + labelWidth + nameWidth + 4.0f, card.top + 140.0f);
+    // DWrite drops trailing whitespace from text metrics, so the gap has to be
+    // explicit rather than relying on the trailing space in the label.
+    float gap = 5.0f;
+    return Rect(left + labelWidth + gap, card.top + 118.0f, left + labelWidth + gap + nameWidth + 2.0f,
+                card.top + 140.0f);
 }
 
 void MainWindow::DrawAbout(const Layout& layout)
@@ -1943,13 +1980,16 @@ void MainWindow::DrawAbout(const Layout& layout)
     painter_.Text(i18n::T(L"about.ok"), painter_.Format(13.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD), layout.dialogOk,
                   theme_.onAccent, DWRITE_TEXT_ALIGNMENT_CENTER);
 
-    if (aboutFocusLink_)
-        painter_.StrokeRound(Rect(link.left - 5.0f, link.top + 1.0f, link.right + 5.0f, link.bottom - 1.0f),
-                             3.0f, theme_.accent, 2.0f);
-    else
-        painter_.StrokeRound(Rect(layout.dialogOk.left - 3.0f, layout.dialogOk.top - 3.0f,
-                                  layout.dialogOk.right + 3.0f, layout.dialogOk.bottom + 3.0f),
-                             6.0f, theme_.text, 1.5f);
+    if (focusRingVisible_)
+    {
+        if (aboutFocusLink_)
+            painter_.StrokeRound(Rect(link.left - 5.0f, link.top + 1.0f, link.right + 5.0f, link.bottom - 1.0f),
+                                 3.0f, theme_.accent, 2.0f);
+        else
+            painter_.StrokeRound(Rect(layout.dialogOk.left - 3.0f, layout.dialogOk.top - 3.0f,
+                                      layout.dialogOk.right + 3.0f, layout.dialogOk.bottom + 3.0f),
+                                 6.0f, theme_.text, 1.5f);
+    }
 }
 namespace {
 
