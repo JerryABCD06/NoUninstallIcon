@@ -258,6 +258,20 @@ void App::HandleHideGroup(bool hide)
 
 void App::HandleAutostart(AutostartMode mode)
 {
+    // Re-selecting the mode that is already running must not restart the watcher:
+    // that would blink the tray icon away just as the user reaches for it.
+    if (mode == store_.Settings().autostart &&
+        (mode == AutostartMode::Watch || mode == AutostartMode::Silent))
+    {
+        HANDLE running = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background");
+        if (running)
+        {
+            CloseHandle(running);
+            window_.SetAutostartMode(mode);
+            return;
+        }
+    }
+
     // Registering a task talks to the Task Scheduler service; doing that on the
     // UI thread can leave the window unresponsive if the service is busy. The
     // result comes back as WM_APP_AUTOSTART_DONE.
