@@ -592,6 +592,14 @@ int App::RunWatch(bool showTray)
     // then the registration is refused; retry, and re-add when TaskbarCreated
     // arrives.
     const UINT taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
+
+    // The watcher runs elevated, so Explorer (medium integrity) cannot post the
+    // tray callback or the shell-restart notice to this window: user interface
+    // isolation drops them silently. Let those two messages through.
+    ChangeWindowMessageFilterEx(hwnd, WM_APP + 10, MSGFLT_ALLOW, nullptr);
+    if (taskbarCreated) ChangeWindowMessageFilterEx(hwnd, taskbarCreated, MSGFLT_ALLOW, nullptr);
+    LogLineF(L"tray: message filter opened (elevated=%d)",
+             IsElevated() ? 1 : 0);
     auto addIcon = [&]() {
         if (!showTray) return TRUE;
         Shell_NotifyIconW(NIM_DELETE, &icon);  // drop a stale registration with this GUID
