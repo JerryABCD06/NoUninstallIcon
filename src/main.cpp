@@ -32,6 +32,7 @@ struct Options
     int previewFocus = -1;
     int previewScroll = -1;
     bool showAbout = false;
+    bool noTray = false;   // --background --no-tray: watch without a tray icon
     bool themeSpecified = false;
     bool darkTheme = false;
 };
@@ -56,10 +57,12 @@ Options ParseOptions(int argc, wchar_t** argv)
         {
             options.mode = Options::Mode::Apply;
         }
-        else if (EqualsI(arg, L"--watch"))
+        else if (EqualsI(arg, L"--watch") || EqualsI(arg, L"--background"))
         {
             options.mode = Options::Mode::Watch;
         }
+        else if (EqualsI(arg, L"--no-tray"))
+            options.noTray = true;
         else if (EqualsI(arg, L"--cleanup"))
         {
             options.mode = Options::Mode::Cleanup;
@@ -164,7 +167,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
     case Options::Mode::SelfTest:
         return app.RunSelfTest();
     case Options::Mode::Watch:
-        return app.RunWatch();
+        return app.RunWatch(!options.noTray);
     case Options::Mode::CrashTest:
     {
         volatile int* pointer = nullptr;
@@ -181,7 +184,12 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
         break;
     }
 
-    if (!IsElevated())
+    // NOUI_NO_ELEVATE=1 runs without the UAC prompt, for automated checks.
+    wchar_t elevateFlag[8]{};
+    const bool skipElevation =
+        GetEnvironmentVariableW(L"NOUI_NO_ELEVATE", elevateFlag, 8) > 0 && elevateFlag[0] == L'1';
+
+    if (!IsElevated() && !skipElevation)
     {
         bool launched = RelaunchElevated();
         if (!launched)

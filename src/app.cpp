@@ -504,8 +504,17 @@ int App::RunCleanup()
     return RunRestoreAll();
 }
 
-int App::RunWatch()
+int App::RunWatch(bool showTray)
 {
+
+    // One background instance only: the sign-in task and a manual launch must
+    // not both own a tray icon.
+    HANDLE slot = CreateMutexW(nullptr, FALSE, L"Local\\NoUninstallIcon.Background");
+    if (slot && GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        CloseHandle(slot);
+        return 0;
+    }
     ApplyDesired(true);
 
     // Hidden window so the tray icon gets its messages.
@@ -527,7 +536,7 @@ int App::RunWatch()
     icon.hIcon = static_cast<HICON>(LoadImageW(instance_, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR));
     if (!icon.hIcon) icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     wcscpy_s(icon.szTip, i18n::T(L"app.title"));
-    Shell_NotifyIconW(NIM_ADD, &icon);
+    if (showTray) Shell_NotifyIconW(NIM_ADD, &icon);
 
     std::stop_source stop;
     std::mutex applyMutex;
@@ -599,7 +608,7 @@ int App::RunWatch()
     if (userWatcher.joinable()) userWatcher.join();
     if (machineWatcher.joinable()) machineWatcher.join();
 
-    Shell_NotifyIconW(NIM_DELETE, &icon);
+    if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);
     return 0;
 }
 

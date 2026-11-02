@@ -24,7 +24,7 @@ public:
     int RunRestoreAll();
     int RunCleanup();
     int RunSelfTest();
-    int RunWatch();
+    int RunWatch(bool showTray = true);
     void SetCapturePath(const std::wstring& path) { capturePath_ = path; }
     void SetAboutOpen(bool open) { window_.SetAboutOpen(open); }
     void SetPreviewQuery(const std::wstring& text) { window_.SetPreviewQuery(text); }
