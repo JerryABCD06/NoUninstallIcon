@@ -40,6 +40,10 @@ toast.unhidden={0} eingeblendet
 toast.failed={0} konnten nicht geändert werden
 toast.undo=Rückgängig
 
+toast.hiddenItem=„{0}“ erscheint nicht mehr im Startmenü.
+toast.shownItem=„{0}“ erscheint wieder im Startmenü.
+toast.stillHiddenItem=Dieses Werkzeug blendet „{0}“ nicht mehr aus, anderweitig bleibt sie verborgen.
+
 empty.search=Keine Treffer für „{0}“
 hint.keys=Leertaste schaltet um · Eingabetaste öffnet den Speicherort
 

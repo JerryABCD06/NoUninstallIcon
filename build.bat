@@ -61,3 +61,6 @@ if errorlevel 1 (
 echo [build] ok: %BUILD%\NoUninstallIcon.exe
 popd
 endlocal
+
+rem Language files must stay in sync with en.lang
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\check-lang.ps1"
