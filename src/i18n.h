@@ -19,6 +19,7 @@ bool SetLanguage(const std::wstring& code);
 const std::wstring& CurrentCode();
 const std::vector<LanguageInfo>& Available();
 const wchar_t* LocaleName();
+bool IsFollowingSystem();
 
 // Returns the requested key, falling back to English and then to the key itself.
 const wchar_t* T(const wchar_t* key);

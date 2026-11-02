@@ -1889,20 +1889,28 @@ void MainWindow::ShowLanguageMenu()
 
     HMENU menu = CreatePopupMenu();
     const auto& languages = i18n::Available();
+    // Follow the system locale, resolved from the mapping table on every start.
+    AppendMenuW(menu, MF_STRING | (i18n::IsFollowingSystem() ? MF_CHECKED : 0), 1000, i18n::T(L"lang.system"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+
     for (int i = 0; i < static_cast<int>(languages.size()); ++i)
     {
         UINT flags = MF_STRING;
-        if (EqualsI(languages[i].code, i18n::CurrentCode())) flags |= MF_CHECKED;
-        AppendMenuW(menu, flags, 1000 + i, languages[i].nativeName.c_str());
+        if (!i18n::IsFollowingSystem() && EqualsI(languages[i].code, i18n::CurrentCode())) flags |= MF_CHECKED;
+        AppendMenuW(menu, flags, 1001 + i, languages[i].nativeName.c_str());
     }
 
     SetForegroundWindow(hwnd_);
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);
 
-    if (command >= 1000 && command < 1000 + static_cast<int>(languages.size()))
+    if (command == 1000)
     {
-        ApplyLanguage(languages[command - 1000].code);
+        ApplyLanguage(std::wstring());  // empty means "follow the system"
+    }
+    else if (command >= 1001 && command < 1001 + static_cast<int>(languages.size()))
+    {
+        ApplyLanguage(languages[command - 1001].code);
     }
     PostMessage(hwnd_, WM_NULL, 0, 0);
 }

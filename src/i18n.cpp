@@ -25,6 +25,8 @@ Table gCurrent;
 std::wstring gCurrentCode = L"en";
 std::vector<LanguageInfo> gAvailable;
 std::vector<std::wstring> gDefinitionCodes;
+bool gFollowingSystem = false;
+std::vector<std::pair<std::wstring, std::wstring>> gLocaleMap;
 std::wstring gLocaleName = L"en-US";
 std::wstring gNativeName;
 
@@ -118,6 +120,18 @@ std::wstring SystemLanguageCode()
     if (!GetUserDefaultLocaleName(name, LOCALE_NAME_MAX_LENGTH)) return L"en";
     std::wstring locale = name;
     std::wstring lower = ToLower(locale);
+    std::wstring bestCode;
+    size_t bestLength = 0;
+    for (const auto& entry : gLocaleMap)
+    {
+        if (entry.first.size() > bestLength && StartsWithI(lower, entry.first))
+        {
+            bestLength = entry.first.size();
+            bestCode = entry.second;
+        }
+    }
+    if (!bestCode.empty()) return bestCode;
+
     if (StartsWithI(lower, L"zh"))
     {
         if (lower.find(L"-tw") != std::wstring::npos || lower.find(L"-hk") != std::wstring::npos ||
@@ -180,8 +194,22 @@ void BuildLanguageList()
 
 }  // namespace
 
+// res/lang/map.txt: Windows locale -> language file.
+void LoadLocaleMap()
+{
+    Table map;
+    if (!LoadResource(100, map)) return;
+    for (const auto& entry : map)
+    {
+        if (entry.first.size() < 3 || entry.second.empty()) continue;
+        gLocaleMap.emplace_back(entry.first, entry.second);
+    }
+}
+
 void Init(const std::wstring& preferredCode)
 {
+    LoadLocaleMap();
+    gFollowingSystem = preferredCode.empty();
     LoadResource(kFirstLanguageId, gEnglish);
 
     // Discover every embedded language by probing its resource id.
@@ -203,11 +231,14 @@ void Init(const std::wstring& preferredCode)
 
 bool SetLanguage(const std::wstring& code)
 {
-    if (EqualsI(code, gCurrentCode)) return true;
-    return ApplyLanguage(code);
+    gFollowingSystem = code.empty();
+    const std::wstring resolved = gFollowingSystem ? SystemLanguageCode() : code;
+    if (EqualsI(resolved, gCurrentCode)) return true;
+    return ApplyLanguage(resolved);
 }
 
 const std::wstring& CurrentCode() { return gCurrentCode; }
+bool IsFollowingSystem() { return gFollowingSystem; }
 const std::vector<LanguageInfo>& Available() { return gAvailable; }
 const wchar_t* LocaleName() { return gLocaleName.c_str(); }
 

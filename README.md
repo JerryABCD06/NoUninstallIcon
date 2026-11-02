@@ -143,9 +143,14 @@ so tests never touch real shortcuts.
 ## Localisation
 
 All UI strings live in `res/lang/*.lang` and are embedded as `RCDATA`; English,
-Simplified Chinese, Traditional Chinese and Japanese ship today. The language is
-chosen from the system UI language and can be switched at runtime. Missing keys fall
-back to English.
+German, Simplified Chinese, Traditional Chinese and Japanese ship today. Missing keys
+fall back to English.
+
+`res/lang/map.txt` maps Windows locales to a language file (`zh-CN`, `zh-SG` and
+`zh-MY` all mean Simplified Chinese). The longest matching prefix wins, then the
+primary subtag, then English. Adding a language is one `.lang` file plus one `RCDATA`
+line: the table is discovered at startup, no code change needed. The picker starts
+with a System entry that follows the current locale on every launch.
 ## About dialog
 
 The **About** command on the right of the header opens an in-window dialog — a Fluent
