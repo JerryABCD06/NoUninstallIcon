@@ -137,11 +137,11 @@ bool ApplyLanguage(const std::wstring& code)
 {
     Table loaded;
     int resourceId = 0;
-    for (auto& def : gDefinitions)
+    for (size_t index = 0; index < gDefinitions.size(); ++index)
     {
-        if (EqualsI(def.code, code))
+        if (EqualsI(gDefinitionCodes[index], code))
         {
-            resourceId = def.resourceId;
+            resourceId = gDefinitions[index].resourceId;
             break;
         }
     }
