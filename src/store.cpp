@@ -87,7 +87,6 @@ DWORD ToHex(const std::wstring& text)
 bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records, AppSettings& settings)
 {
     std::string raw;
-    bool sawSetting = false;
     bool sawAutostart = false;
     if (!ReadWholeFile(file, raw)) return false;
 
@@ -119,7 +118,6 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
 
         if (fields[0] == L"S" && fields.size() >= 3)
         {
-            sawSetting = true;
             if (fields[1] == L"autostart") sawAutostart = true;
             if (fields[1] == L"language") parsedSettings.language = Unescape(fields[2]);
             else if (fields[1] == L"autostart")
@@ -221,7 +219,7 @@ bool Store::Save()
     if (readOnly_)
     {
         LogLine(L"Refusing to save over an unreadable state file");
-        LogLine(L"Save refused: the state file could not be read");
+        return false;
     }
 
     if (!EnsureDirectory(GetDataDir())) return false;

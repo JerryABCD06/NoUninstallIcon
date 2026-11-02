@@ -103,6 +103,12 @@ void App::MergeRecords()
 void App::HandleToggle(int itemIndex, bool hidden)
 {
     StateLock stateGuard;  // serialise with the other process
+    if (!stateGuard.held())
+    {
+        LogLine(L"state lock unavailable, leaving the state alone");
+        return;
+    }
+    store_.Load();  // the file, not our memory, is the truth
     if (itemIndex < 0 || itemIndex >= static_cast<int>(model_.items.size())) return;
     ShortcutItem& item = model_.items[itemIndex];
 
@@ -180,6 +186,12 @@ void App::HandleToggle(int itemIndex, bool hidden)
 void App::HandleRestoreAll()
 {
     StateLock stateGuard;  // serialise with the other process
+    if (!stateGuard.held())
+    {
+        LogLine(L"state lock unavailable, leaving the state alone");
+        return;
+    }
+    store_.Load();  // the file, not our memory, is the truth
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
@@ -205,6 +217,12 @@ void App::HandleRestoreAll()
 void App::HandleHideGroup(bool hide)
 {
     StateLock stateGuard;  // serialise with the other process
+    if (!stateGuard.held())
+    {
+        LogLine(L"state lock unavailable, leaving the state alone");
+        return;
+    }
+    store_.Load();  // the file, not our memory, is the truth
     int changed = 0;
     std::vector<std::wstring> touched;
     // Act on what the list is showing: the header count is the filtered count,
@@ -363,6 +381,9 @@ int App::RunGui(int showCommand)
     window_.callbacks.hideUninstallGroup = [this](bool hide) { HandleHideGroup(hide); };
     window_.callbacks.autostartChanged = [this](AutostartMode mode) { HandleAutostart(mode); };
     window_.callbacks.languageChanged = [this](const std::wstring& code) {
+        StateLock stateGuard;
+        if (!stateGuard.held()) return;
+        store_.Load();  // a concurrent restore may have changed the file
         store_.Settings().language = code;
         store_.Save();
     };
@@ -377,8 +398,13 @@ int App::RunGui(int showCommand)
             window_.ShowToast(i18n::T(L"error.task"), false);
             return;
         }
-        store_.Settings().autostart = mode;
-        store_.Save();
+        {
+            StateLock stateGuard;
+            if (!stateGuard.held()) return;
+            store_.Load();
+            store_.Settings().autostart = mode;
+            store_.Save();
+        }
         window_.SetAutostartMode(mode);
         // Tell the watcher what it should be. It adjusts its own icon and exits
         // when the mode stops wanting one, so nothing is restarted here and the
@@ -431,7 +457,15 @@ int App::RunGui(int showCommand)
             CloseHandle(slot);
         }
         if (!alreadyRunning)
-            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL);
+        {
+            const HINSTANCE started =
+                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL);
+            LogLineF(L"startup: launched watcher %p (err=%lu)", reinterpret_cast<void*>(started), GetLastError());
+        }
+        else
+        {
+            LogLine(L"startup: a watcher is already running");
+        }
     }
 
     if (!capturePath_.empty())
@@ -466,6 +500,12 @@ int App::RunGui(int showCommand)
 int App::RunSilentApply()
 {
     StateLock stateGuard;  // serialise with the other process
+    if (!stateGuard.held())
+    {
+        LogLine(L"state lock unavailable, leaving the state alone");
+        return 1;
+    }
+    store_.Load();  // the file, not our memory, is the truth
     int changed = ApplyDesired(true);
     LogLineF(L"Silent apply finished, %d shortcut(s) re-hidden", changed);
     return 0;
@@ -474,6 +514,12 @@ int App::RunSilentApply()
 int App::RunRestoreAll()
 {
     StateLock stateGuard;  // serialise with the other process
+    if (!stateGuard.held())
+    {
+        LogLine(L"state lock unavailable, leaving the state alone");
+        return 1;
+    }
+    store_.Load();  // the file, not our memory, is the truth
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
@@ -566,8 +612,16 @@ int App::RunCleanup()
     // and wait for it to go, so it cannot re-hide shortcuts during the restore.
     // Persist Off as well: cleanup runs before the uninstaller deletes the
     // executable, and a stored Watch would recreate the task on a later launch.
-    store_.Settings().autostart = AutostartMode::Off;
-    store_.Save();
+    {
+        StateLock stateGuard;  // released before waiting for the watcher
+        if (!stateGuard.held()) LogLine(L"cleanup: state lock unavailable");
+        else
+        {
+            store_.Load();
+            store_.Settings().autostart = AutostartMode::Off;
+            store_.Save();
+        }
+    }
 
     session::Publish(static_cast<int>(AutostartMode::Off));
     for (int tick = 0; tick < 40; ++tick)
@@ -601,6 +655,7 @@ int App::RunWatch(bool showTray)
 
     {
         StateLock stateGuard;  // the first apply must not overlap a restore
+        store_.Load();  // a restore may have finished while we were starting
         ApplyDesired(true);
     }
 
