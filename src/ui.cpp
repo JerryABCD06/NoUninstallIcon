@@ -352,6 +352,8 @@ void MainWindow::RebuildDisplay()
     contentHeightCache_ = y;
     ClampScroll();
     if (focusRow_ >= model_->RowCount()) focusRow_ = model_->RowCount() - 1;
+    // Rows appear after the scan; give the focused list something to point at.
+    if (focus_ == FocusTarget::List && focusRow_ < 0 && model_->RowCount() > 0) focusRow_ = 0;
 }
 
 void MainWindow::ClampScroll()
@@ -1592,6 +1594,7 @@ void MainWindow::SetFocusTarget(FocusTarget target)
         composition_.clear();
     }
 
+    if (target != FocusTarget::List) lastAnnouncedGroup_ = -1;
     if (target == FocusTarget::List && model_ && model_->RowCount() > 0 && focusRow_ < 0)
     {
         focusRow_ = 0;
@@ -2318,22 +2321,41 @@ void MainWindow::PublishAccessibility(const Layout& layout)
     add(a11y::Element::About, i18n::T(L"a11y.about"), layout.aboutButton, UIA_ButtonControlTypeId,
         focus_ == FocusTarget::About);
 
-    // The list announces the focused row, because rows are not individual UIA
-    // elements: 300+ items would make the tree far too heavy.
-    std::wstring listName = i18n::T(L"a11y.list");
-    if (model_ && focus_ == FocusTarget::List)
+    add(a11y::Element::List, i18n::T(L"a11y.list"), layout.list, UIA_ListControlTypeId, false);
+
+    // The focused row is its own UIA element; materialising all 300+ rows would
+    // make the tree far too heavy, so only the current one exists.
+    const ShortcutItem* row = (model_ && focus_ == FocusTarget::List) ? model_->At(focusRow_) : nullptr;
+    if (row)
     {
-        const ShortcutItem* item = model_->At(focusRow_);
-        if (item)
+        const wchar_t* state = (row->managed && row->desiredHidden)
+                                   ? i18n::T(L"a11y.state.hidden")
+                                   : (row->hiddenOnDisk ? i18n::T(L"a11y.state.external")
+                                                         : i18n::T(L"a11y.state.visible"));
+
+        // Always name the group: the snapshot is rebuilt on every repaint, so a
+        // one-shot group prefix would be gone by the time a screen reader asks.
+        const wchar_t* group = row->isUninstall ? i18n::T(L"a11y.group.uninstall") : i18n::T(L"a11y.group.other");
+        std::wstring rowName = i18n::Tf(L"a11y.rowGrouped", {group, row->displayName, state});
+
+        D2D1_RECT_F rowRect = layout.list;
+        for (const Entry& entry : entries_)
         {
-            const wchar_t* state = (item->managed && item->desiredHidden)
-                                       ? i18n::T(L"a11y.item.hidden")
-                                       : (item->hiddenOnDisk ? i18n::T(L"a11y.item.external")
-                                                             : i18n::T(L"a11y.item.visible"));
-            listName = item->displayName + L", " + state + L", " + listName;
+            if (entry.header || entry.value != focusRow_) continue;
+            float top = layout.list.top + entry.top - scroll_;
+            rowRect = Rect(layout.list.left, top, layout.list.right, top + entry.height);
+            break;
         }
+
+        a11y::SnapshotElement rowElement;
+        rowElement.id = a11y::Element::ListRow;
+        rowElement.name = rowName;
+        rowElement.help = row->path;
+        rowElement.bounds = toScreen(rowRect);
+        rowElement.controlType = UIA_ListItemControlTypeId;
+        rowElement.focused = true;
+        elements.push_back(std::move(rowElement));
     }
-    add(a11y::Element::List, listName.c_str(), layout.list, UIA_ListControlTypeId, focus_ == FocusTarget::List);
 
     a11y::Publish(elements);
 }
@@ -2346,7 +2368,7 @@ void MainWindow::AnnounceFocus()
     switch (focus_)
     {
     case FocusTarget::Search: element = a11y::Element::Search; break;
-    case FocusTarget::List: element = a11y::Element::List; break;
+    case FocusTarget::List: element = a11y::Element::ListRow; break;
     case FocusTarget::Rescan: element = a11y::Element::Rescan; break;
     case FocusTarget::RestoreAll: element = a11y::Element::RestoreAll; break;
     case FocusTarget::HideUninstall: element = a11y::Element::HideUninstall; break;
@@ -2359,4 +2381,8 @@ void MainWindow::AnnounceFocus()
     // and, for the list, the new row text.
     PublishAccessibility(ComputeLayout());
     a11y::NotifyFocus(element);
+}
+void MainWindow::Announce(const std::wstring& text)
+{
+    a11y::Notify(text);
 }

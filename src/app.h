@@ -28,7 +28,7 @@ public:
     void SetCapturePath(const std::wstring& path) { capturePath_ = path; }
     void SetAboutOpen(bool open) { window_.SetAboutOpen(open); }
     void SetPreviewQuery(const std::wstring& text) { window_.SetPreviewQuery(text); }
-    void SetPreviewFocus(int index) { window_.SetPreviewFocus(index); }
+    void SetPreviewFocus(int index) { previewFocus_ = index; window_.SetPreviewFocus(index); }
     void SetPreviewScroll(int pixels) { window_.SetPreviewScroll(pixels); }
     void ScanBlocking();
     bool RenderScreenshot(const std::wstring& path, bool dark);
@@ -49,6 +49,7 @@ private:
     void ShowToast(const std::wstring& text, bool undoable);
 
     std::wstring capturePath_;
+    int previewFocus_ = -1;
     HINSTANCE instance_ = nullptr;
     Model model_;
     Store store_;

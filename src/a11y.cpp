@@ -192,7 +192,7 @@ public:
         *retVal = nullptr;
 
         const int index = static_cast<int>(id_);
-        const int count = static_cast<int>(Element::List) + 1;
+        const int lastRootChild = static_cast<int>(Element::List);
         int target = -1;
 
         // Skip ids that are not in the published snapshot: an action button can
@@ -208,25 +208,42 @@ public:
         switch (direction)
         {
         case NavigateDirection_Parent:
-            target = (index == 0) ? -1 : 0;
+            if (index == static_cast<int>(Element::ListRow))
+                target = static_cast<int>(Element::List);
+            else if (index == 0)
+                target = -1;
+            else
+                target = 0;
             break;
         case NavigateDirection_FirstChild:
             if (index == 0)
-                for (int i = 1; i < count && target < 0; ++i)
+            {
+                for (int i = 1; i <= lastRootChild && target < 0; ++i)
                     if (exists(i)) target = i;
+            }
+            else if (index == static_cast<int>(Element::List) && exists(static_cast<int>(Element::ListRow)))
+            {
+                target = static_cast<int>(Element::ListRow);
+            }
             break;
         case NavigateDirection_LastChild:
             if (index == 0)
-                for (int i = count - 1; i >= 1 && target < 0; --i)
+            {
+                for (int i = lastRootChild; i >= 1 && target < 0; --i)
                     if (exists(i)) target = i;
+            }
+            else if (index == static_cast<int>(Element::List) && exists(static_cast<int>(Element::ListRow)))
+            {
+                target = static_cast<int>(Element::ListRow);
+            }
             break;
         case NavigateDirection_NextSibling:
-            if (index > 0)
-                for (int i = index + 1; i < count && target < 0; ++i)
+            if (index > 0 && index < lastRootChild)
+                for (int i = index + 1; i <= lastRootChild && target < 0; ++i)
                     if (exists(i)) target = i;
             break;
         case NavigateDirection_PreviousSibling:
-            if (index > 0)
+            if (index > 1 && index <= lastRootChild)
                 for (int i = index - 1; i >= 1 && target < 0; --i)
                     if (exists(i)) target = i;
             break;
@@ -361,6 +378,20 @@ void Publish(const std::vector<SnapshotElement>& elements)
         lastCount = elements.size();
         LogLineF(L"a11y: published %d elements", static_cast<int>(elements.size()));
     }
+}
+
+void Notify(const std::wstring& text)
+{
+    Provider* provider = new (std::nothrow) Provider(Element::Root);
+    if (!provider) return;
+    BSTR message = SysAllocString(text.c_str());
+    if (message)
+    {
+        UiaRaiseNotificationEvent(provider, NotificationKind_ActionCompleted,
+                                  NotificationProcessing_ImportantMostRecent, message, nullptr);
+        SysFreeString(message);
+    }
+    provider->Release();
 }
 
 void NotifyFocus(Element element)

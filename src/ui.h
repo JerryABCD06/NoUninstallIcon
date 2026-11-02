@@ -143,6 +143,9 @@ private:
     void DrawFocusRing();
     void PublishAccessibility(const Layout& layout);
     void AnnounceFocus();
+public:
+    void Announce(const std::wstring& text);
+private:
     void StartIconWorker();
     void StopIconWorker();
     void IconWorkerMain();
@@ -202,6 +205,7 @@ private:
     bool aboutOpen_ = false;
     bool aboutFocusLink_ = false;
     FocusTarget focus_ = FocusTarget::Search;
+    int lastAnnouncedGroup_ = -1;
     float previewScroll_ = -1.0f;
     bool focusRingVisible_ = false;
 

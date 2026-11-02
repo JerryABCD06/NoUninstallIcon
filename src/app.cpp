@@ -133,6 +133,8 @@ void App::HandleToggle(int itemIndex, bool hidden)
             NotifyShellItem(item.path);
             store_.Save();
             ShowToast(i18n::Tf(L"toast.hiddenItem", {item.displayName}), true);
+            if (window_.Handle())
+                window_.Announce(i18n::Tf(L"a11y.announce.hidden", {item.displayName}));
         }
         else
         {
@@ -159,6 +161,9 @@ void App::HandleToggle(int itemIndex, bool hidden)
             ShowToast(i18n::Tf(originallyHidden ? L"toast.stillHiddenItem" : L"toast.shownItem",
                                {item.displayName}),
                       true);
+            if (window_.Handle())
+                window_.Announce(i18n::Tf(originallyHidden ? L"a11y.announce.stillHidden" : L"a11y.announce.shown",
+                                          {item.displayName}));
         }
         else
         {
@@ -354,6 +359,7 @@ int App::RunGui(int showCommand)
     };
 
     if (!window_.Create(instance_, showCommand)) return 1;
+    if (previewFocus_ >= 0) window_.SetPreviewFocus(previewFocus_);
 
     model_.loading = true;
     StartScan();

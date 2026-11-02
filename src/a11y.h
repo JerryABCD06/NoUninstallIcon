@@ -18,6 +18,7 @@ enum class Element
     Language,
     About,
     List,
+    ListRow,
 };
 
 struct SnapshotElement
@@ -42,6 +43,7 @@ void Publish(const std::vector<SnapshotElement>& elements);
 
 // Raises UIA_AutomationFocusChangedEventId for the element.
 void NotifyFocus(Element element);
+void Notify(const std::wstring& text);
 
 LRESULT HandleGetObject(HWND hwnd, WPARAM wparam, LPARAM lparam);
 

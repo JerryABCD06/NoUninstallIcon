@@ -80,6 +80,26 @@ int wmain(int argc, wchar_t** argv)
         IUIAutomationElement* child = nullptr;
         if (FAILED(children->GetElement(i, &child)) || !child) continue;
         PrintElement(child, "  ", i);
+
+        CONTROLTYPEID kind = 0;
+        child->get_CurrentControlType(&kind);
+        if (kind == UIA_ListControlTypeId)
+        {
+            IUIAutomationElementArray* grandchildren = nullptr;
+            child->FindAll(TreeScope_Children, condition, &grandchildren);
+            int inner = 0;
+            if (grandchildren) grandchildren->get_Length(&inner);
+            for (int j = 0; j < inner; ++j)
+            {
+                IUIAutomationElement* grandchild = nullptr;
+                if (SUCCEEDED(grandchildren->GetElement(j, &grandchild)) && grandchild)
+                {
+                    PrintElement(grandchild, "    row ", j);
+                    grandchild->Release();
+                }
+            }
+            if (grandchildren) grandchildren->Release();
+        }
         child->Release();
     }
 

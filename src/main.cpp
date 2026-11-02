@@ -173,6 +173,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
     }
     case Options::Mode::Preview:
         app.SetCapturePath(options.capturePath);
+        if (options.previewFocus >= 0) app.SetPreviewFocus(options.previewFocus);
         return app.RunGui(showCommand);
     case Options::Mode::Gui:
     default:
