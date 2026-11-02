@@ -1,0 +1,108 @@
+lang.native_name=한국어
+lang.code=ko
+lang.system=시스템 설정
+
+app.title=제거 아이콘이 필요 없습니다
+app.subtitle=시작 메뉴의 바로 가기 숨기기
+
+search.placeholder=이름 또는 경로 검색
+search.clear=지우기
+
+group.uninstall=제거 항목
+group.other=기타 바로 가기
+group.items={0}개
+
+toggle.autostart=로그인할 때 자동으로 숨기기
+autostart.mode=방식
+autostart.off=사용 안 함
+autostart.once=로그인할 때 한 번
+autostart.watch=계속 감시
+autostart.hint.once=로그인할 때마다 목록을 한 번 적용한 뒤 종료합니다.
+autostart.hint.watch=백그라운드에 상주하며 즉시 다시 적용합니다.
+
+status.summary=바로 가기 {0}개 · 이 도구로 숨김 {1}개 · 다른 방법으로 숨김 {2}개
+status.loading=시작 메뉴를 검사하는 중…
+status.empty=바로 가기를 찾지 못했습니다.
+
+badge.user=사용자
+badge.machine=모든 사용자
+badge.external=다른 방법으로 숨김
+
+action.rescan=다시 검사
+action.hide_group=모두 숨기기
+action.unhide_group=그룹 모두 표시
+action.restore_all=모두 복원
+action.open_location=파일 위치 열기
+action.copy_path=경로 복사
+
+toast.hidden={0}개 숨김
+toast.unhidden={0}개 복원
+toast.failed={0}개를 변경하지 못했습니다
+toast.undo=실행 취소
+
+toast.hiddenItem={0} 항목이 더 이상 시작 메뉴에 표시되지 않습니다.
+toast.shownItem={0} 항목이 다시 시작 메뉴에 표시됩니다.
+toast.stillHiddenItem=이 도구는 {0} 항목을 더 이상 숨기지 않지만 다른 방법으로 여전히 숨겨져 있습니다.
+
+empty.search="{0}"에 맞는 항목이 없습니다
+hint.keys=스페이스 전환 · Enter 파일 위치 열기
+
+error.elevation=모든 사용자의 바로 가기를 변경하려면 관리자 권한이 필요합니다.
+error.store=상태 파일을 쓰지 못했습니다.
+error.task=로그인 작업을 만들지 못했습니다.
+error.task_removed=로그인 작업을 제거했습니다.
+
+confirm.restore_all=이 도구로 숨긴 바로 가기를 모두 복원할까요?
+confirm.hide_group=이 그룹의 바로 가기 {0}개를 모두 숨길까요?
+
+tray.show=열기
+tray.quit=종료
+
+about.button=정보
+about.title=정보
+about.free=이 프로그램은 자유 소프트웨어입니다.
+about.license=MIT 라이선스로 배포됩니다.
+about.author=만든 사람: 
+about.ok=확인
+about.author_name=Wang Yunzheng
+
+edit.cut=잘라내기
+edit.copy=복사
+edit.paste=붙여넣기
+edit.select_all=모두 선택
+edit.clear=지우기
+
+a11y.app=제거 아이콘이 필요 없습니다
+a11y.search=바로 가기 검색
+a11y.rescan=다시 검사
+a11y.restoreAll=이 도구로 숨긴 바로 가기 모두 복원
+a11y.hideGroup=목록의 제거 항목 모두 숨기기
+a11y.autostart=로그인할 때 자동으로 숨기기
+a11y.language=언어
+a11y.about=정보
+a11y.list=시작 메뉴 바로 가기
+a11y.item.hidden=숨김
+a11y.item.visible=숨기지 않음
+a11y.item.external=다른 방법으로 숨김
+a11y.group.uninstall=제거 항목
+a11y.group.other=기타 바로 가기
+a11y.state.hidden=숨김
+a11y.state.visible=표시
+a11y.state.external=다른 방법으로 숨김
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} 항목을 숨겼습니다. 더 이상 시작 메뉴에 표시되지 않습니다.
+a11y.announce.shown={0} 항목을 표시했습니다. 다시 시작 메뉴에 나타납니다.
+a11y.announce.stillHidden=이 도구는 {0} 항목을 더 이상 숨기지 않지만 다른 방법으로 여전히 숨겨져 있습니다.
+a11y.aboutDialog=정보
+a11y.aboutBody=이 프로그램은 자유 소프트웨어입니다. MIT 라이선스로 배포됩니다. 만든 사람: Wang Yunzheng.
+a11y.aboutLink=만든 사람 페이지 열기: github.com/JerryABCD06
+a11y.emptySearch="{0}"에 맞는 바로 가기가 없습니다
+a11y.emptyList=바로 가기를 찾지 못했습니다
+
+menu.hide=숨기기
+menu.show=표시
+menu.open_shortcut=바로 가기 위치 열기
+menu.open_target=대상 파일 위치 열기
+
+autostart.portable_note=포터블 모드: 이 폴더 밖에 로그인 작업을 만듭니다

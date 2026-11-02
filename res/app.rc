@@ -11,6 +11,7 @@
 #define IDR_LANG_FR      106
 #define IDR_LANG_ES      107
 #define IDR_LANG_RU      108
+#define IDR_LANG_KO      109
 
 1 ICON "app.ico"
 
@@ -23,6 +24,7 @@ IDR_LANG_DE      RCDATA "lang\\de.lang"
 IDR_LANG_FR      RCDATA "lang\\fr.lang"
 IDR_LANG_ES      RCDATA "lang\\es.lang"
 IDR_LANG_RU      RCDATA "lang\\ru.lang"
+IDR_LANG_KO      RCDATA "lang\\ko.lang"
 
 1 VERSIONINFO
 FILEVERSION     1,0,0,0
