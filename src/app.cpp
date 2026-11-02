@@ -252,12 +252,14 @@ void App::HandleRestoreAll()
     {
         // The disk still says these are hidden, so undo the restore instead of
         // letting the watcher quietly put them back with no gesture from the user.
+        bool undoFailed = false;
         for (const auto& path : restoredPaths)
         {
-            SetShortcutHidden(path, true);
+            if (SetShortcutHidden(path, true) != ApplyStatus::Ok) undoFailed = true;
             NotifyShellItem(path);
         }
-        store_.Records() = beforeRecords;
+        if (!undoFailed) store_.Records() = beforeRecords;
+        else LogLine(L"restore: could not undo every change, keeping the records");
         last_.valid = false;
         MergeRecords();
         window_.ModelChanged();
@@ -334,13 +336,14 @@ void App::HandleHideGroup(bool hide)
         {
             StoredRecord* record = store_.Find(item.key);
             bool originallyHidden = record && (record->originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+            DWORD beforeAttributes = 0;
+            ReadAttributes(item.path, beforeAttributes);  // the state right before this change
             if (SetShortcutHidden(item.path, originallyHidden) == ApplyStatus::Ok)
             {
                 store_.Erase(item.key);
                 item.managed = false;
                 item.desiredHidden = false;
-                item.hiddenOnDisk = originallyHidden;
-                undo.push_back({item.path, originallyHidden});
+                undo.push_back({item.path, (beforeAttributes & FILE_ATTRIBUTE_HIDDEN) != 0});
                 NotifyShellItem(item.path);
                 touched.push_back(item.key);
                 ++changed;
@@ -351,12 +354,14 @@ void App::HandleHideGroup(bool hide)
     {
         // Undo the attributes in reverse, then put the records back as they were:
         // a failed batch must not leave hidden shortcuts nobody manages.
+        bool undoFailed = false;
         for (auto it = undo.rbegin(); it != undo.rend(); ++it)
         {
-            SetShortcutHidden(it->path, it->wasHidden);
+            if (SetShortcutHidden(it->path, it->wasHidden) != ApplyStatus::Ok) undoFailed = true;
             NotifyShellItem(it->path);
         }
-        store_.Records() = beforeRecords;
+        if (!undoFailed) store_.Records() = beforeRecords;
+        else LogLine(L"group: some changes could not be undone, keeping the records");
         last_.valid = false;
         MergeRecords();
         window_.ModelChanged();
@@ -462,7 +467,7 @@ int App::ApplyDesired(bool notify, int* failed)
             // A sign-in run that could not hide something must say so, or the
             // scheduler reports success for work that never happened.
             LogLineF(L"  could not hide (%d): %s", static_cast<int>(status), record.path.c_str());
-            ++failedHere;
+            if (status == ApplyStatus::Failed) ++failedHere;
         }
     }
     // Deliberately not saved: a watcher that rewrites the file also rewrites
@@ -499,6 +504,7 @@ int App::RunGui(int showCommand)
         {
             StateLock stateGuard;
             if (!stateGuard.held())
+                window_.SetAutostartMode(store_.Settings().autostart);
             {
                 // The task may have changed, but the setting was not recorded, so
                 // do not publish a mode that will not survive the next launch.
@@ -513,6 +519,15 @@ int App::RunGui(int showCommand)
                 store_.Load();  // back to what the file actually says
                 window_.SetAutostartMode(store_.Settings().autostart);
                 window_.ShowToast(i18n::T(L"error.store"), false);
+                // Put the sign-in task back in line with the stored mode, or the
+                // next launch would install a task for a setting that was never saved.
+                const AutostartMode stored = store_.Settings().autostart;
+                std::thread([stored]() {
+                    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+                    if (stored == AutostartMode::Off) RemoveAutostart();
+                    else InstallAutostart(stored);
+                    CoUninitialize();
+                }).detach();
                 return;
             }
         }
@@ -616,9 +631,9 @@ int App::RunSilentApply()
         LogLine(L"state lock unavailable, leaving the state alone");
         return 1;
     }
-    MergeRecords();  // and the list has to show what the file now says
     int failed = 0;
     const bool loaded = store_.Load();
+    MergeRecords();  // and the list has to show what the file now says
     int changed = ApplyDesired(true, &failed);
     LogLineF(L"Silent apply finished, %d re-hidden, %d failed, state readable=%d", changed, failed, loaded ? 1 : 0);
     return (loaded && failed == 0) ? 0 : 1;
@@ -637,15 +652,22 @@ int App::RunRestoreAll()
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     std::vector<std::wstring> restoredPaths;
+    int restoreFailed = 0;
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
-        if (SetShortcutHidden(record.path, originallyHidden) == ApplyStatus::Ok)
+        const ApplyStatus restoreStatus = SetShortcutHidden(record.path, originallyHidden);
+        if (restoreStatus == ApplyStatus::Ok)
         {
             NotifyShellItem(record.path);
             restoredKeys.push_back(record.key);
             restoredPaths.push_back(record.path);
             ++restored;
+        }
+        else if (restoreStatus == ApplyStatus::Failed)
+        {
+            ++restoreFailed;
+            LogLineF(L"  could not restore: %s", record.path.c_str());
         }
     }
     // Only forget the ones that really came back: a failed restore must stay
@@ -666,6 +688,11 @@ int App::RunRestoreAll()
         return 1;
     }
     LogLineF(L"Restore all finished, %d shortcut(s) restored", restored);
+    if (restoreFailed > 0)
+    {
+        LogLineF(L"%d shortcut(s) could not be restored", restoreFailed);
+        return 1;
+    }
     return 0;
 }
 

@@ -79,10 +79,20 @@ begin
       Exit;
     if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--cleanup', '', SW_HIDE,
                 ewWaitUntilTerminated, ResultCode) then
-      MsgBox('The cleanup step could not be started. Some Start menu entries may stay hidden.',
-             mbError, MB_OK)
+    begin
+      Log('Cleanup could not be started.');
+      if not UninstallSilent then
+        MsgBox('The cleanup step could not be started. Some Start menu entries may stay hidden.',
+               mbError, MB_OK);
+    end
     else if ResultCode <> 0 then
-      MsgBox('The cleanup step reported a problem (code ' + IntToStr(ResultCode) +
-             '). Some Start menu entries may still be hidden.', mbError, MB_OK);
+    begin
+      Log('Cleanup failed with code ' + IntToStr(ResultCode) + '.');
+      // A silent uninstall must never wait on a dialog, and a message box would
+      // be lost anyway; the log and the exit code are all we can offer there.
+      if not UninstallSilent then
+        MsgBox('The cleanup step reported a problem (code ' + IntToStr(ResultCode) +
+               '). Some Start menu entries may still be hidden.', mbError, MB_OK);
+    end;
   end;
 end;
