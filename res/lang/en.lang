@@ -1,4 +1,3 @@
-# English (fallback language). UTF-8, key=value, '#' starts a comment.
 lang.native_name=English
 lang.code=en
 

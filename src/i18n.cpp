@@ -165,12 +165,13 @@ bool ApplyLanguage(const std::wstring& code)
 void BuildLanguageList()
 {
     if (!gAvailable.empty()) return;
-    for (auto& def : gDefinitions)
+    for (size_t index = 0; index < gDefinitions.size(); ++index)
     {
+        const LanguageDef& def = gDefinitions[index];
         Table temp;
         if (!LoadResource(def.resourceId, temp)) continue;
         LanguageInfo info;
-        info.code = def.code;
+        info.code = gDefinitionCodes[index];
         auto native = temp.find(L"lang.native_name");
         info.nativeName = native != temp.end() ? native->second : def.code;
         gAvailable.push_back(std::move(info));
