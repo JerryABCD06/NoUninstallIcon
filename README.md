@@ -60,10 +60,22 @@ was already hidden before this tool touched it stays hidden when it is released.
 | Path | Purpose |
 |---|---|
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat` | Managed records and settings (tab separated, escaped, atomically replaced) |
+| `%LOCALAPPDATA%\NoUninstallIcon\state.dat.bak` | Copy of the previous save, used if the primary file is damaged |
 | `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Rolling log, capped at 1 MB |
 | Task `NoUninstallIcon-AutoHide` | Sign-in task, created only when the user enables it |
 
-Set `NOUI_DATA_DIR` to use a different data folder (portable mode).
+## Portable mode
+
+Drop a file named `portable` next to `NoUninstallIcon.exe` and the program keeps
+everything in `<exe folder>\data` instead of the user profile. The portable archive in
+`dist/` ships that marker; delete it to go back to the normal location. If the folder
+is not writable (a CD, a locked share) the program falls back to `%LOCALAPPDATA%`
+instead of failing.
+
+`NOUI_DATA_DIR` overrides both choices and is what the tests use.
+
+The sign-in task stores an absolute path, so enabling automatic hiding while running
+from a removable drive will break once the drive letter changes.
 
 ## Build
 

@@ -84,20 +84,68 @@ std::wstring GetExeDir()
     return slash == std::wstring::npos ? std::wstring() : path.substr(0, slash);
 }
 
+namespace {
+
+bool DirectoryIsWritable(const std::wstring& directory)
+{
+    std::wstring probe = JoinPath(directory, L".write-probe");
+    HANDLE file = CreateFileW(probe.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS,
+                              FILE_ATTRIBUTE_TEMPORARY | FILE_FLAG_DELETE_ON_CLOSE, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    CloseHandle(file);
+    return true;
+}
+
+bool gPortable = false;
+
+}  // namespace
+
+bool IsPortableMode()
+{
+    GetDataDir();  // resolves the mode once
+    return gPortable;
+}
+
 std::wstring GetDataDir()
 {
-    // NOUI_DATA_DIR lets the tool run in portable mode and keeps tests isolated.
+    static std::wstring cached;
+    static bool resolved = false;
+    if (resolved) return cached;
+    resolved = true;
+
+    // 1. Explicit override, used by tests and by people who want the data elsewhere.
     wchar_t overridePath[MAX_PATH]{};
     DWORD overrideLength = GetEnvironmentVariableW(L"NOUI_DATA_DIR", overridePath, MAX_PATH);
-    if (overrideLength > 0 && overrideLength < MAX_PATH) return overridePath;
+    if (overrideLength > 0 && overrideLength < MAX_PATH)
+    {
+        cached = overridePath;
+        return cached;
+    }
 
+    // 2. Portable mode: a "portable" file next to the executable keeps the
+    //    records in <exe dir>\data instead of the user profile.
+    const std::wstring exeDir = GetExeDir();
+    if (!exeDir.empty() && PathFileExistsW(JoinPath(exeDir, L"portable").c_str()))
+    {
+        std::wstring portableDir = JoinPath(exeDir, L"data");
+        if (EnsureDirectory(portableDir) && DirectoryIsWritable(portableDir))
+        {
+            gPortable = true;
+            cached = portableDir;
+            return cached;
+        }
+        // Read-only location (for example a CD): fall through to the profile.
+    }
+
+    // 3. Default: per-user application data.
     PWSTR localAppData = nullptr;
     std::wstring result;
     if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_CREATE, nullptr, &localAppData)) && localAppData)
         result = std::wstring(localAppData) + L"\\" + kAppDataFolder;
     CoTaskMemFree(localAppData);
-    if (result.empty()) result = GetExeDir() + L"\\" + kAppDataFolder;
-    return result;
+    if (result.empty()) result = exeDir + L"\\" + kAppDataFolder;
+    cached = result;
+    return cached;
 }
 
 std::wstring JoinPath(const std::wstring& dir, const std::wstring& leaf)

@@ -14,6 +14,8 @@ std::wstring Fmt(const wchar_t* format, ...);
 const std::wstring& GetExePath();
 std::wstring GetExeDir();
 std::wstring GetDataDir();
+// True when a "portable" marker next to the executable selected the data folder.
+bool IsPortableMode();
 std::wstring JoinPath(const std::wstring& dir, const std::wstring& leaf);
 std::wstring FileNameOf(const std::wstring& path);
 std::wstring ExtensionOf(const std::wstring& path);

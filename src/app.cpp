@@ -26,6 +26,7 @@ bool App::Initialize(HINSTANCE instance)
     instance_ = instance;
     store_.Load();
     i18n::Init(store_.Settings().language);
+    LogLineF(L"Data directory: %s%s", GetDataDir().c_str(), IsPortableMode() ? L" (portable)" : L"");
     window_.SetModel(&model_);
     window_.SetAutostartMode(store_.Settings().autostart);
     return true;

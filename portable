@@ -1,0 +1,7 @@
+Portable mode marker.
+
+Keeping this file next to NoUninstallIcon.exe makes the program store its
+records in a "data" folder beside the executable instead of in
+%LOCALAPPDATA%\NoUninstallIcon.
+
+Delete this file to go back to the normal per-user location.
