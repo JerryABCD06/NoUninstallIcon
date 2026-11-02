@@ -39,6 +39,10 @@ public:
     const AppSettings& Settings() const { return settings_; }
 
 private:
+    // Set when the file on disk could not be read at all: saving then would
+    // overwrite the only copy of what this tool hid, so the file is left alone.
+    bool readOnly_ = false;
+
     std::vector<StoredRecord> records_;
     AppSettings settings_;
 };

@@ -19,6 +19,8 @@ HICON gIconHandle = nullptr;
 tray::Callbacks gCallbacks;
 UINT gTaskbarCreated = 0;
 bool gIconVisible = false;
+bool gDesiredVisible = false;
+bool gVersion4 = false;  // whether the shell accepted the modern protocol
 
 void ShowMenu(POINT anchor)
 {
@@ -55,6 +57,7 @@ bool AddIcon()
             NOTIFYICONDATAW version = gIcon;
             version.uVersion = NOTIFYICON_VERSION_4;
             const BOOL versioned = Shell_NotifyIconW(NIM_SETVERSION, &version);
+            gVersion4 = versioned ? true : false;
             gIconVisible = true;
             LogLineF(L"tray: added (attempt=%d version4=%d)", attempt, versioned ? 1 : 0);
             return true;
@@ -72,8 +75,10 @@ void HandleClick(POINT anchor, WORD event)
     switch (event)
     {
     case WM_CONTEXTMENU:
+        if (gVersion4) ShowMenu(anchor);  // v4 reports the click this way
+        break;
     case WM_RBUTTONUP:
-        ShowMenu(anchor);
+        if (!gVersion4) ShowMenu(anchor);  // older shell semantics
         break;
     case WM_LBUTTONDBLCLK:
     case NIN_SELECT:
@@ -116,7 +121,7 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
     {
         // Explorer restarted and dropped the icon; put it back.
         LogLineF(L"tray: shell restarted, re-adding");
-        AddIcon();
+        if (gDesiredVisible) AddIcon();
         return 0;
     }
 
@@ -175,6 +180,7 @@ bool tray::Start(HINSTANCE instance, const std::wstring& tooltip, Callbacks call
 
 void tray::SetVisible(bool visible)
 {
+    gDesiredVisible = visible;
     if (!gWindow) return;
     if (visible)
     {

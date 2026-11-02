@@ -179,16 +179,20 @@ void App::HandleToggle(int itemIndex, bool hidden)
 void App::HandleRestoreAll()
 {
     int restored = 0;
+    std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
         if (SetShortcutHidden(record.path, originallyHidden) != ApplyStatus::Failed)
         {
             NotifyShellItem(record.path);
+            restoredKeys.push_back(record.key);
             ++restored;
         }
     }
-    store_.Records().clear();
+    // Only forget the ones that really came back: a failed restore must stay
+    // fixable instead of leaving a hidden shortcut nobody manages.
+    for (const auto& key : restoredKeys) store_.Erase(key);
     store_.Save();
     last_.valid = false;
     MergeRecords();
@@ -342,7 +346,8 @@ int App::ApplyDesired(bool notify)
             ++changed;
         }
     }
-    if (changed > 0) store_.Save();
+    // Deliberately not saved: a watcher that rewrites the file also rewrites
+    // the settings it does not own, and can revert a mode change made meanwhile.
     return changed;
 }
 
@@ -464,16 +469,20 @@ int App::RunSilentApply()
 int App::RunRestoreAll()
 {
     int restored = 0;
+    std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
         if (SetShortcutHidden(record.path, originallyHidden) != ApplyStatus::Failed)
         {
             NotifyShellItem(record.path);
+            restoredKeys.push_back(record.key);
             ++restored;
         }
     }
-    store_.Records().clear();
+    // Only forget the ones that really came back: a failed restore must stay
+    // fixable instead of leaving a hidden shortcut nobody manages.
+    for (const auto& key : restoredKeys) store_.Erase(key);
     store_.Save();
     LogLineF(L"Restore all finished, %d shortcut(s) restored", restored);
     return 0;
@@ -657,12 +666,12 @@ int App::RunWatch(bool showTray)
         const DWORD wait = MsgWaitForMultipleObjects(handleCount, &changeEvent, FALSE, INFINITE, QS_ALLINPUT);
         if (changeEvent && wait == WAIT_OBJECT_0)
         {
+            ResetEvent(changeEvent);  // before reading: a publish now re-sets it
             const int mode = session::Mode();
             const bool wantsTray = mode == static_cast<int>(AutostartMode::Watch);
             const bool wantsWatching = wantsTray || mode == static_cast<int>(AutostartMode::Silent);
             LogLineF(L"watcher: mode=%d tray=%d keep=%d", mode, wantsTray ? 1 : 0, wantsWatching ? 1 : 0);
             if (showTray) tray::SetVisible(wantsTray);
-            ResetEvent(changeEvent);
             if (!wantsWatching) running = false;
             continue;
         }

@@ -127,15 +127,24 @@ derived from it and can be rebuilt from it.
 | Off | none | none | none |
 | Once | `--apply` | none | none |
 | Watch | `--background` | one | shown |
-| Watch (no tray) | `--background --no-tray` | one | none |
+| Watch (no tray) | `--background` | one | none |
 
-The mode travels through a small shared section (`Local\NoUninstallIcon.State`:
+The task always starts a plain `--background` watcher; whether the icon appears
+is decided by the mode it is told, not by how it was launched. A watcher started
+by hand with `--no-tray` never shows an icon in any mode.
+
+The mode travels through a small shared section (`Local\NoUninstallIcon.State`,
 a version and the mode) plus a manual-reset event
-(`Local\NoUninstallIcon.Changed`). The version makes a stale or out-of-order
-delivery harmless; the manual reset means a change published while nobody was
-listening is still seen later. Shared memory is used rather than a window
-message because the watcher runs elevated and window messages are filtered
-between integrity levels.
+(`Local\NoUninstallIcon.Changed`). The manual reset means a change published
+while nobody was listening is still seen later; the watcher clears the event
+*before* reading the mode, so a publish that lands during the read sets it again
+and is not lost. Shared memory is used rather than a window message because the
+watcher runs elevated and window messages are filtered between integrity levels.
+
+The watcher never writes the state file. Applying hidden attributes used to save
+it as well, which rewrote the settings the watcher does not own and could revert
+a mode change made in the window; the applied timestamp is now only written when
+the window saves.
 
 Ownership is what stops the two processes undoing each other:
 

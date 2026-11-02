@@ -159,7 +159,16 @@ bool Store::Load()
     settings_ = AppSettings{};
 
     std::wstring path = StateFilePath();
-    if (!PathFileExistsW(path.c_str())) return true;  // first run
+    if (!PathFileExistsW(path.c_str()))
+    {
+        // No primary: a leftover backup is still the only memory of what we hid.
+        if (ParseStateFile(path + L".bak", records_, settings_))
+        {
+            LogLineF(L"Recovered %d record(s) from the backup", static_cast<int>(records_.size()));
+            return true;
+        }
+        return true;  // first run
+    }
 
     if (ParseStateFile(path, records_, settings_)) return true;
 
@@ -172,13 +181,19 @@ bool Store::Load()
         return true;
     }
 
-    LogLine(L"State file and backup are both unreadable");
+    readOnly_ = true;
+    LogLine(L"State file and backup are both unreadable; leaving the file alone");
     return false;
 }
 
 bool Store::Save()
 {
-    if (!EnsureDirectory(GetDataDir())) return false;
+    if (readOnly_)
+    {
+        LogLine(L"Refusing to save over an unreadable state file");
+        return false;
+    }
+
 
     std::wstring output;
     output += kHeader;
