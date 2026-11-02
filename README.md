@@ -157,6 +157,10 @@ Reconciliation happens on:
 
 A watcher that dies while the window is closed is only noticed at the next
 start-up or the next sign-in. There is no third watchdog process, by design.
+Not yet implemented: a watcher that dies **while the window is open** is not
+noticed either. The fix would be to hold a handle to the mutex the watcher owns
+and wait on it, so the wait returns when the owner dies; that is a kernel
+notification rather than polling, but it is not in yet.
 
 Only the mode travels in the broadcast; the shortcut records are still read from
 disk when the watcher applies them, because a few hundred records do not belong
