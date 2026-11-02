@@ -173,6 +173,14 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
     case WM_KEYDOWN:
         OnKeyDown(wparam);
         return 0;
+    case WM_SYSKEYDOWN:
+        // F10 is a system key, so Shift+F10 arrives here and not as WM_KEYDOWN.
+        if (wparam == VK_F10 || wparam == VK_APPS)
+        {
+            OnKeyDown(wparam);
+            return 0;
+        }
+        break;
     case WM_CHAR:
         OnChar(static_cast<wchar_t>(wparam));
         return 0;
@@ -1390,8 +1398,8 @@ void MainWindow::OnKeyDown(WPARAM key)
     // The menu key and Shift+F10 open the context menu for whatever has focus.
     if (key == VK_APPS || (key == VK_F10 && shift))
     {
-        if (focus_ == FocusTarget::List && model_ && focusRow_ >= 0)
-            ShowContextMenu(focusRow_, true);
+        if (focus_ == FocusTarget::List && model_ && model_->RowCount() > 0)
+            ShowContextMenu(focusRow_ >= 0 ? focusRow_ : 0, true);
         else if (focus_ == FocusTarget::Search)
             ShowSearchMenu();
         return;
