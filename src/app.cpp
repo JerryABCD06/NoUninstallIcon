@@ -109,6 +109,7 @@ void App::HandleToggle(int itemIndex, bool hidden)
         return;
     }
     store_.Load();  // the file, not our memory, is the truth
+    MergeRecords();  // and the list has to show what the file now says
     if (itemIndex < 0 || itemIndex >= static_cast<int>(model_.items.size())) return;
     ShortcutItem& item = model_.items[itemIndex];
 
@@ -192,6 +193,7 @@ void App::HandleRestoreAll()
         return;
     }
     store_.Load();  // the file, not our memory, is the truth
+    MergeRecords();  // and the list has to show what the file now says
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
@@ -223,6 +225,7 @@ void App::HandleHideGroup(bool hide)
         return;
     }
     store_.Load();  // the file, not our memory, is the truth
+    MergeRecords();  // and the list has to show what the file now says
     int changed = 0;
     std::vector<std::wstring> touched;
     // Act on what the list is showing: the header count is the filtered count,
@@ -234,6 +237,7 @@ void App::HandleHideGroup(bool hide)
         if (hide == (item.managed && item.desiredHidden)) continue;
         if (hide)
         {
+            bool createdHere = false;
             StoredRecord* record = store_.Find(item.key);
             DWORD attributes = 0;
             ReadAttributes(item.path, attributes);
@@ -245,8 +249,10 @@ void App::HandleHideGroup(bool hide)
                 record->displayName = item.displayName;
                 record->target = item.target;
                 record->firstSeen = NowSeconds();
+                createdHere = true;
             }
-            if (SetShortcutHidden(item.path, true) == ApplyStatus::Ok)
+            const ApplyStatus hideStatus = SetShortcutHidden(item.path, true);
+            if (hideStatus == ApplyStatus::Ok)
             {
                 record->desiredHidden = true;
                 record->lastApplied = NowSeconds();
@@ -256,6 +262,12 @@ void App::HandleHideGroup(bool hide)
                 NotifyShellItem(item.path);
                 touched.push_back(item.key);
                 ++changed;
+            }
+            else if (createdHere)
+            {
+                // The hide failed, so this record would describe something we
+                // never touched; drop it instead of persisting a phantom.
+                store_.Erase(item.key);
             }
         }
         else
@@ -323,7 +335,7 @@ void App::HandleOpenLocation(int itemIndex)
 void App::HandleUndo()
 {
     StateLock stateGuard;  // serialise with the other process
-    if (!last_.valid) return;
+    if (!last_.valid || !stateGuard.held()) return;
     const LastAction action = last_;
     last_.valid = false;
     for (const auto& key : action.keys)
@@ -506,6 +518,7 @@ int App::RunSilentApply()
         return 1;
     }
     store_.Load();  // the file, not our memory, is the truth
+    MergeRecords();  // and the list has to show what the file now says
     int changed = ApplyDesired(true);
     LogLineF(L"Silent apply finished, %d shortcut(s) re-hidden", changed);
     return 0;
@@ -520,6 +533,7 @@ int App::RunRestoreAll()
         return 1;
     }
     store_.Load();  // the file, not our memory, is the truth
+    MergeRecords();  // and the list has to show what the file now says
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
@@ -632,7 +646,7 @@ int App::RunCleanup()
         Sleep(100);
     }
 
-    RemoveAutostart();
+    if (!RemoveAutostart()) LogLine(L"cleanup: could not remove the task");
     return RunRestoreAll();
 }
 
@@ -655,8 +669,21 @@ int App::RunWatch(bool showTray)
 
     {
         StateLock stateGuard;  // the first apply must not overlap a restore
-        store_.Load();  // a restore may have finished while we were starting
-        ApplyDesired(true);
+        if (!stateGuard.held())
+        {
+            LogLine(L"watcher: state lock busy, skipping the first apply");
+        }
+        else
+        {
+            store_.Load();  // a restore may have finished while we were starting
+            const AutostartMode startMode = store_.Settings().autostart;
+            if (startMode != AutostartMode::Watch && startMode != AutostartMode::Silent)
+            {
+                LogLineF(L"watcher: mode %d does not want a watcher, exiting", static_cast<int>(startMode));
+                return 0;
+            }
+            ApplyDesired(true);
+        }
     }
 
     std::stop_source stop;
@@ -703,8 +730,15 @@ int App::RunWatch(bool showTray)
             {
                 std::lock_guard<std::mutex> guard(applyMutex);
                 StateLock stateGuard;  // do not apply while a restore is running
-                store_.Load();
-                ApplyDesired(true);
+                if (!stateGuard.held())
+                {
+                    LogLine(L"watcher: state lock busy, skipping this change");
+                }
+                else
+                {
+                    store_.Load();
+                    ApplyDesired(true);
+                }
             }
             if (!FindNextChangeNotification(notification)) break;
         }

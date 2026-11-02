@@ -61,7 +61,7 @@ was already hidden before this tool touched it stays hidden when it is released.
 |---|---|
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat` | Managed records and settings (tab separated, escaped, atomically replaced) |
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat.bak` | Copy of the previous save, used if the primary file is damaged |
-| `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Rolling log, capped at 1 MB |
+| `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Append-only log, trimmed to 1 MB when the program starts |
 | Task `NoUninstallIcon-AutoHide` | Sign-in task, created only when the user enables it |
 
 ## Portable mode
@@ -114,8 +114,11 @@ managed shortcut its original attributes back.
 | `--dump <txt>` | Scan and write a classification report. |
 | `--selftest` | Hide/unhide a fixture entry and verify the invariants. |
 
-`--screenshot`, `--capture`, `--dump` and `--selftest` never change anything and do
-not request elevation.
+`--screenshot`, `--dump` and `--selftest` do not request elevation. `--screenshot`
+and `--dump` change nothing. `--selftest` hides and unhides a fixture entry, so
+point `NOUI_DATA_DIR` and `NOUI_SCAN_ROOT` at a temporary directory before running
+it. `--capture` renders the real window, which means it also runs the start-up
+reconciliation: use it with a temporary data directory too.
 
 ## How the pieces agree
 
@@ -175,6 +178,27 @@ Only the mode travels in the broadcast; the shortcut records are still read from
 disk when the watcher applies them, because a few hundred records do not belong
 in a message.
 
+## Why there are two processes
+
+The window is a Direct3D 11 / Direct2D / DirectComposition program. Measured on a
+release build: 82.0 MB working set, 57.2 MB private, 112 loaded modules. The
+watcher, which never touches a graphics API, is 14.3 MB working set and **2.5 MB
+private** across 40 modules.
+
+The window is only open while settings are being changed. The rest of the time
+the resident cost of the product is the watcher's 2.5 MB.
+
+That is the whole argument for the split. One process would keep the graphics
+stack resident (57 MB), or would have to destroy and recreate its device every
+time the window is hidden, with the device-loss handling that implies.
+
+The price is everything in the section above: a shared section and event to carry
+the mode, a named lock around the state file, two singleton mutexes and a
+reconciliation pass at start-up. That price is bounded, because the program has
+four modes, one watcher and one tray icon and is not going to grow. Merging it
+back into one process is a reasonable choice for a lighter user interface; it was
+considered here and rejected for the memory, not because the complexity is small.
+
 ## The tray icon
 
 `src/tray.cpp` owns it; nothing else in the program touches `Shell_NotifyIcon`.
@@ -206,7 +230,7 @@ remove. A Task Scheduler task with `RunLevel=HighestAvailable` and an
 exactly what is needed.
 
 The one-shot mode waits 20 s, then applies. Watch mode also reacts to
-`ReadDirectoryChangesW` notifications, so a shortcut recreated by an installer is
+`FindFirstChangeNotificationW` notifications, so a shortcut recreated by an installer is
 hidden within a second.
 
 ## Testing
