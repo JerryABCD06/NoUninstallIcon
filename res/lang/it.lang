@@ -1,0 +1,108 @@
+lang.native_name=Italiano
+lang.code=it
+lang.system=Sistema
+
+app.title=Non mi serve l'icona di disinstallazione
+app.subtitle=Nascondi le scorciatoie dal menu Start
+
+search.placeholder=Cerca nome o percorso
+search.clear=Cancella
+
+group.uninstall=Voci di disinstallazione
+group.other=Altre scorciatoie
+group.items={0} elementi
+
+toggle.autostart=Nascondi automaticamente all'accesso
+autostart.mode=Modalità
+autostart.off=Disattivato
+autostart.once=Una volta all'accesso
+autostart.watch=Controlla di continuo
+autostart.hint.once=Applica l'elenco una volta per sessione, poi esce.
+autostart.hint.watch=Resta in background e riapplica subito.
+
+status.summary={0} scorciatoie · {1} nascoste da questo strumento · {2} nascoste altrove
+status.loading=Analisi del menu Start…
+status.empty=Nessuna scorciatoia trovata.
+
+badge.user=Utente
+badge.machine=Tutti gli utenti
+badge.external=Nascosta altrove
+
+action.rescan=Analizza di nuovo
+action.hide_group=Nascondi tutto
+action.unhide_group=Mostra tutto il gruppo
+action.restore_all=Ripristina tutto
+action.open_location=Apri posizione del file
+action.copy_path=Copia percorso
+
+toast.hidden={0} nascoste
+toast.unhidden={0} ripristinate
+toast.failed={0} non modificabili
+toast.undo=Annulla
+
+toast.hiddenItem=«{0}» non apparirà più nel menu Start.
+toast.shownItem=«{0}» riapparirà nel menu Start.
+toast.stillHiddenItem=Questo strumento non nasconde più «{0}», ma qualcos'altro lo fa ancora.
+
+empty.search=Nessun risultato per «{0}»
+hint.keys=Spazio attiva · Invio apre la posizione del file
+
+error.elevation=Modificare le scorciatoie di tutti gli utenti richiede i privilegi di amministratore.
+error.store=Impossibile scrivere il file di stato.
+error.task=Impossibile creare l'attività di accesso.
+error.task_removed=L'attività di accesso è stata rimossa.
+
+confirm.restore_all=Ripristinare tutte le scorciatoie nascoste da questo strumento?
+confirm.hide_group=Nascondere tutte le {0} scorciatoie di questo gruppo?
+
+tray.show=Apri
+tray.quit=Esci
+
+about.button=Informazioni
+about.title=Informazioni
+about.free=Questo è software libero.
+about.license=Distribuito con licenza MIT.
+about.author=Autore: 
+about.ok=OK
+about.author_name=Wang Yunzheng
+
+edit.cut=Taglia
+edit.copy=Copia
+edit.paste=Incolla
+edit.select_all=Seleziona tutto
+edit.clear=Cancella
+
+a11y.app=Non mi serve l'icona di disinstallazione
+a11y.search=Cerca scorciatoie
+a11y.rescan=Analizza di nuovo
+a11y.restoreAll=Ripristina tutte le scorciatoie nascoste da questo strumento
+a11y.hideGroup=Nascondi tutte le voci di disinstallazione nell'elenco
+a11y.autostart=Nascondi automaticamente all'accesso
+a11y.language=Lingua
+a11y.about=Informazioni
+a11y.list=Scorciatoie del menu Start
+a11y.item.hidden=Nascosta
+a11y.item.visible=Non nascosta
+a11y.item.external=Nascosta altrove
+a11y.group.uninstall=Voci di disinstallazione
+a11y.group.other=Altre scorciatoie
+a11y.state.hidden=nascosta
+a11y.state.visible=non nascosta
+a11y.state.external=nascosta altrove
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} nascosta. Non appare più nel menu Start.
+a11y.announce.shown={0} ripristinata. Riappare nel menu Start.
+a11y.announce.stillHidden=Questo strumento non nasconde più {0}, ma resta nascosta altrove.
+a11y.aboutDialog=Informazioni
+a11y.aboutBody=Questo è software libero. Distribuito con licenza MIT. Autore: Wang Yunzheng.
+a11y.aboutLink=Apri il profilo dell'autore: github.com/JerryABCD06
+a11y.emptySearch=Nessuna scorciatoia corrisponde a «{0}»
+a11y.emptyList=Nessuna scorciatoia trovata
+
+menu.hide=Nascondi
+menu.show=Mostra
+menu.open_shortcut=Apri posizione della scorciatoia
+menu.open_target=Apri posizione della destinazione
+
+autostart.portable_note=Modalità portatile: crea un'attività di accesso fuori da questa cartella

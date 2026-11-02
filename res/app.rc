@@ -13,6 +13,7 @@
 #define IDR_LANG_RU      108
 #define IDR_LANG_KO      109
 #define IDR_LANG_PTBR    110
+#define IDR_LANG_IT      111
 
 1 ICON "app.ico"
 
@@ -27,6 +28,7 @@ IDR_LANG_ES      RCDATA "lang\\es.lang"
 IDR_LANG_RU      RCDATA "lang\\ru.lang"
 IDR_LANG_KO      RCDATA "lang\\ko.lang"
 IDR_LANG_PTBR    RCDATA "lang\\pt-BR.lang"
+IDR_LANG_IT      RCDATA "lang\\it.lang"
 
 1 VERSIONINFO
 FILEVERSION     1,0,0,0
