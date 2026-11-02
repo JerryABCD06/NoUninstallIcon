@@ -367,6 +367,9 @@ void MainWindow::ClampScroll()
 
 void MainWindow::UpdateQuery()
 {
+
+    // Announce the field once the typing pauses; every edit restarts the wait.
+    if (hwnd_ && searchFocused_) SetTimer(hwnd_, 3, 1000, nullptr);
     ClampCaret();
     if (!model_) return;
     model_->query = query_;
@@ -397,6 +400,12 @@ void MainWindow::OnTimer(UINT_PTR id)
         KillTimer(hwnd_, 2);
         toastVisible_ = false;
         Invalidate();
+    }
+    else if (id == 3)
+    {
+        // A newer notification replaces whatever is still being spoken.
+        KillTimer(hwnd_, 3);
+        if (searchFocused_ && !query_.empty()) a11y::Notify(query_);
     }
 }
 
