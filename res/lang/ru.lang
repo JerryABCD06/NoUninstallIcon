@@ -1,0 +1,108 @@
+lang.native_name=Русский
+lang.code=ru
+lang.system=Системный
+
+app.title=Мне не нужна иконка удаления
+app.subtitle=Скрыть ярлыки из меню «Пуск»
+
+search.placeholder=Поиск по имени или пути
+search.clear=Очистить
+
+group.uninstall=Элементы удаления
+group.other=Другие ярлыки
+group.items={0} элементов
+
+toggle.autostart=Скрывать автоматически при входе в систему
+autostart.mode=Режим
+autostart.off=Выключено
+autostart.once=Один раз при входе
+autostart.watch=Постоянно отслеживать
+autostart.hint.once=Применяет список один раз за сеанс и завершается.
+autostart.hint.watch=Остаётся в фоне и сразу применяет изменения.
+
+status.summary={0} ярлыков · {1} скрыто этой программой · {2} скрыто иначе
+status.loading=Сканирование меню «Пуск»…
+status.empty=Ярлыки не найдены.
+
+badge.user=Пользователь
+badge.machine=Все пользователи
+badge.external=Скрыто иначе
+
+action.rescan=Сканировать снова
+action.hide_group=Скрыть все
+action.unhide_group=Показать всю группу
+action.restore_all=Восстановить все
+action.open_location=Открыть расположение файла
+action.copy_path=Копировать путь
+
+toast.hidden=Скрыто: {0}
+toast.unhidden=Восстановлено: {0}
+toast.failed=Не удалось изменить: {0}
+toast.undo=Отменить
+
+toast.hiddenItem=«{0}» больше не появится в меню «Пуск».
+toast.shownItem=«{0}» снова появится в меню «Пуск».
+toast.stillHiddenItem=Эта программа больше не скрывает «{0}», но он всё ещё скрыт иначе.
+
+empty.search=Нет совпадений для «{0}»
+hint.keys=Пробел переключает · Enter открывает расположение файла
+
+error.elevation=Для изменения ярлыков всех пользователей нужны права администратора.
+error.store=Не удалось записать файл состояния.
+error.task=Не удалось создать задачу входа в систему.
+error.task_removed=Задача входа в систему удалена.
+
+confirm.restore_all=Восстановить все ярлыки, скрытые этой программой?
+confirm.hide_group=Скрыть все ярлыки этой группы ({0})?
+
+tray.show=Открыть
+tray.quit=Выход
+
+about.button=О программе
+about.title=О программе
+about.free=Это свободное программное обеспечение.
+about.license=Распространяется по лицензии MIT.
+about.author=Автор: 
+about.ok=ОК
+about.author_name=Wang Yunzheng
+
+edit.cut=Вырезать
+edit.copy=Копировать
+edit.paste=Вставить
+edit.select_all=Выделить все
+edit.clear=Очистить
+
+a11y.app=Мне не нужна иконка удаления
+a11y.search=Поиск ярлыков
+a11y.rescan=Сканировать снова
+a11y.restoreAll=Восстановить все ярлыки, скрытые этой программой
+a11y.hideGroup=Скрыть все элементы удаления в списке
+a11y.autostart=Скрывать автоматически при входе в систему
+a11y.language=Язык
+a11y.about=О программе
+a11y.list=Ярлыки меню «Пуск»
+a11y.item.hidden=Скрыт
+a11y.item.visible=Не скрыт
+a11y.item.external=Скрыт иначе
+a11y.group.uninstall=Элементы удаления
+a11y.group.other=Другие ярлыки
+a11y.state.hidden=скрыт
+a11y.state.visible=не скрыт
+a11y.state.external=скрыт иначе
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} скрыт. Он больше не появляется в меню «Пуск».
+a11y.announce.shown={0} показан. Он снова появляется в меню «Пуск».
+a11y.announce.stillHidden=Эта программа больше не скрывает {0}, но он всё ещё скрыт иначе.
+a11y.aboutDialog=О программе
+a11y.aboutBody=Это свободное программное обеспечение. Распространяется по лицензии MIT. Автор: Wang Yunzheng.
+a11y.aboutLink=Открыть профиль автора: github.com/JerryABCD06
+a11y.emptySearch=Ни один ярлык не совпадает с «{0}»
+a11y.emptyList=Ярлыки не найдены
+
+menu.hide=Скрыть
+menu.show=Показать
+menu.open_shortcut=Открыть расположение ярлыка
+menu.open_target=Открыть расположение цели
+
+autostart.portable_note=Портативный режим: создаёт задачу входа в систему вне этой папки
