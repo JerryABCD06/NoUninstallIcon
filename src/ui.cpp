@@ -690,11 +690,12 @@ bool MainWindow::AllUninstallHidden() const
 {
     if (!model_) return false;
     bool any = false;
-    for (const auto& item : model_->items)
+    for (int row : model_->rows)
     {
-        if (!item.isUninstall) continue;
+        const ShortcutItem* item = model_->At(row);
+        if (!item || !item->isUninstall) continue;
         any = true;
-        if (!(item.managed && item.desiredHidden)) return false;
+        if (!(item->managed && item->desiredHidden)) return false;
     }
     return any;
 }

@@ -189,8 +189,11 @@ void App::HandleHideGroup(bool hide)
 {
     int changed = 0;
     std::vector<std::wstring> touched;
-    for (auto& item : model_.items)
+    // Act on what the list is showing: the header count is the filtered count,
+    // so the button must not reach entries the user cannot see.
+    for (int index : model_.rows)
     {
+        ShortcutItem& item = model_.items[index];
         if (!item.isUninstall) continue;
         if (hide == (item.managed && item.desiredHidden)) continue;
         if (hide)
