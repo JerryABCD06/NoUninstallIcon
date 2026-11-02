@@ -105,7 +105,8 @@ managed shortcut its original attributes back.
 |---|---|
 | *(none)* | Normal window. Relaunches itself elevated once. |
 | `--apply` | Apply the stored list silently and exit (used by the sign-in task). |
-| `--watch` | Apply once, then watch both Start menu trees and re-apply on change. Tray icon. |
+| `--watch`, `--background` | Apply once, then watch both Start menu trees and re-apply on change. Owns the tray icon. |
+| `--background --no-tray` | Same, without a tray icon. |
 | `--restore` | Restore every managed shortcut and forget them. |
 | `--cleanup` | Remove the sign-in task, then `--restore` (used by the uninstaller). |
 | `--screenshot <png> [--theme light\|dark] [--about]` | Off-screen render of the window, for testing. |
@@ -115,6 +116,26 @@ managed shortcut its original attributes back.
 
 `--screenshot`, `--capture`, `--dump` and `--selftest` never change anything and do
 not request elevation.
+
+## The tray icon
+
+`src/tray.cpp` owns it; nothing else in the program touches `Shell_NotifyIcon`.
+
+- The icon window is a real (never shown) top-level window. A message-only window
+  looks fine but the shell cannot deliver clicks to it.
+- After every `NIM_ADD` the icon switches to `NOTIFYICON_VERSION_4`. That matters:
+  in version 4 a right click arrives as **`WM_CONTEXTMENU` in the low word of the
+  callback's `lParam`**, with the anchor point packed into `wParam`. Code that only
+  watches for `WM_RBUTTONUP` never sees the click at all.
+- Because the watcher runs elevated, `ChangeWindowMessageFilterEx` (and the older
+  `ChangeWindowMessageFilter`) let the medium-integrity shell post to the window.
+- Double click opens the main window; if one is already open it is activated
+  instead, attaching to its thread because a background process may not take the
+  foreground on its own.
+- `TaskbarCreated` puts the icon back after Explorer restarts.
+- Rights stay consistent: the sign-in task starts the watcher at the highest run
+  level, and both the window and any further watcher inherit that level, so no
+  extra elevation prompt appears in normal use.
 
 ## Why a scheduled task instead of a service
 
