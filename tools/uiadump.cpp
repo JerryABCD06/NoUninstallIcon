@@ -75,28 +75,11 @@ int wmain(int argc, wchar_t** argv)
     if (children) children->get_Length(&count);
     Print(L"control view children: %d\n", count);
 
-    IUIAutomationElement* search = nullptr;
-    VARIANT nameVar;
-    VariantInit(&nameVar);
-    IUIAutomationCondition* nameCondition = nullptr;
-    automation->CreatePropertyCondition(UIA_ControlTypePropertyId, nameVar, &nameCondition);
-    (void)search; (void)nameCondition;
-
     for (int i = 0; i < count; ++i)
     {
         IUIAutomationElement* child = nullptr;
         if (FAILED(children->GetElement(i, &child)) || !child) continue;
         PrintElement(child, "  ", i);
-
-        IUIAutomationValuePattern* valuePattern = nullptr;
-        if (SUCCEEDED(child->GetCurrentPattern(UIA_ValuePatternId, (IUnknown**)&valuePattern)) && valuePattern)
-        {
-            BSTR value = nullptr;
-            valuePattern->get_CurrentValue(&value);
-            Print(L"       value=%s\n", value ? value : L"(null)");
-            SysFreeString(value);
-            valuePattern->Release();
-        }
 
         CONTROLTYPEID kind = 0;
         child->get_CurrentControlType(&kind);
