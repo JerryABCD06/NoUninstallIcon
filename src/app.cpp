@@ -682,12 +682,19 @@ int App::RunWatch(bool showTray)
     // The watcher adjusts itself when the mode is published: no restart, so the
     // tray icon never blinks and no window is left without a watcher.
     HANDLE changeEvent = session::ChangeEvent();
+    if (!changeEvent) LogLine(L"watcher: no change event; mode changes will not arrive");
     MSG message{};
     bool running = true;
     while (running)
     {
         const DWORD handleCount = changeEvent ? 1 : 0;
         const DWORD wait = MsgWaitForMultipleObjects(handleCount, &changeEvent, FALSE, INFINITE, QS_ALLINPUT);
+        if (wait == WAIT_FAILED)
+        {
+            LogLineF(L"watcher: wait failed err=%lu", GetLastError());
+            std::this_thread::sleep_for(std::chrono::milliseconds(200));
+            continue;
+        }
         if (changeEvent && wait == WAIT_OBJECT_0)
         {
             ResetEvent(changeEvent);  // before reading: a publish now re-sets it
