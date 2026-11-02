@@ -25,6 +25,7 @@ constexpr wchar_t kIconClear[] = L"\uE711";
 constexpr wchar_t kIconRefresh[] = L"\uE72C";
 constexpr wchar_t kIconCheck[] = L"\uE73E";
 constexpr wchar_t kIconGlobe[] = L"\uE774";
+constexpr wchar_t kIconInfo[] = L"\uE946";
 
 constexpr wchar_t kAuthorUrl[] = L"https://github.com/JerryABCD06/";
 constexpr wchar_t kAuthorDisplay[] = L"github.com/JerryABCD06";
@@ -398,7 +399,7 @@ void MainWindow::RefreshText()
     autostartLabelWidth_ = std::min(320.0f, painter_.TextWidth(label, labelFormat, 320.0f));
 
     IDWriteTextFormat* aboutFormat = painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL);
-    aboutButtonWidth_ = painter_.TextWidth(i18n::T(L"about.button"), aboutFormat, 260.0f) + 24.0f;
+    aboutButtonWidth_ = painter_.TextWidth(i18n::T(L"about.button"), aboutFormat, 260.0f) + 44.0f;
 
     Invalidate();
 }
@@ -472,12 +473,15 @@ void MainWindow::DrawHeader(const Layout& layout)
     painter_.Text(i18n::T(L"app.subtitle"), painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL), layout.subtitle,
                   theme_.textDim);
 
-    // Text-only command in the header, the way WinUI puts a low-emphasis
-    // action next to a page title.
+    // Accent-coloured header command with the Fluent "Info" glyph.
     if (hotControl_ == 6) painter_.FillRound(layout.aboutButton, 4.0f, theme_.hover);
+    const D2D1_RECT_F& about = layout.aboutButton;
+    painter_.Text(kIconInfo, painter_.IconFormat(15.0f),
+                  Rect(about.left + 10.0f, about.top, about.left + 26.0f, about.bottom), theme_.accent,
+                  DWRITE_TEXT_ALIGNMENT_CENTER, false);
     painter_.Text(i18n::T(L"about.button"), painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL),
-                  layout.aboutButton, hotControl_ == 6 ? theme_.text : theme_.textDim,
-                  DWRITE_TEXT_ALIGNMENT_CENTER);
+                  Rect(about.left + 32.0f, about.top, about.right - 10.0f, about.bottom), theme_.accent,
+                  DWRITE_TEXT_ALIGNMENT_LEADING);
 }
 
 void MainWindow::DrawToolbar(const Layout& layout)
