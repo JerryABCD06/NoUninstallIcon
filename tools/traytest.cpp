@@ -1,10 +1,43 @@
-// Minimal tray probe: registers an icon with increasing flag sets so the first
-// failing step shows which part of NOTIFYICONDATA the shell rejects.
+// Minimal tray probe. Reports the environment that decides whether the shell
+// will accept a notification icon, then tries four flag combinations through the
+// same kind of window the application uses.
 #include <windows.h>
 #include <cstdio>
 
+#pragma comment(lib, "user32.lib")
+#pragma comment(lib, "shell32.lib")
+#pragma comment(lib, "gdi32.lib")
+#pragma comment(lib, "advapi32.lib")
+
+static void ReportEnvironment()
+{
+    BOOL inJob = FALSE;
+    IsProcessInJob(GetCurrentProcess(), nullptr, &inJob);
+    JOBOBJECT_BASIC_UI_RESTRICTIONS ui{};
+    if (inJob && QueryInformationJobObject(nullptr, JobObjectBasicUIRestrictions, &ui, sizeof(ui), nullptr))
+        std::printf("job ui restrictions = 0x%lX\n", ui.UIRestrictionsClass);
+    else
+        std::printf("job = %s\n", inJob ? "yes, no ui limits readable" : "none");
+
+    HANDLE token = nullptr;
+    if (OpenProcessToken(GetCurrentProcess(), TOKEN_QUERY, &token))
+    {
+        TOKEN_ELEVATION elevation{};
+        DWORD size = sizeof(elevation);
+        if (GetTokenInformation(token, TokenElevation, &elevation, size, &size))
+            std::printf("elevated = %d\n", elevation.TokenIsElevated ? 1 : 0);
+        CloseHandle(token);
+    }
+
+    DWORD session = 0;
+    ProcessIdToSessionId(GetCurrentProcessId(), &session);
+    std::printf("session = %lu\n", session);
+}
+
 int main()
 {
+    ReportEnvironment();
+
     WNDCLASSEXW wc{};
     wc.cbSize = sizeof(wc);
     wc.lpfnWndProc = DefWindowProcW;
@@ -48,5 +81,7 @@ int main()
         if (added) Shell_NotifyIconW(NIM_DELETE, &data);
         Sleep(200);
     }
+
+    DestroyWindow(window);
     return 0;
 }

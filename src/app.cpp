@@ -654,35 +654,46 @@ int App::RunWatch(bool showTray)
     {
         if (taskbarCreated && message.message == taskbarCreated)
         {
-            // Explorer restarted: the icon is gone, put it back.
+            // Explorer restarted and dropped the icon: put it back.
             LogLineF(L"tray: shell restarted, re-adding");
             addIcon();
         }
-        else if (message.message == WM_APP + 10) LogLineF(L"tray: hwnd=%p lparam=0x%04X", reinterpret_cast<void*>(message.hwnd), static_cast<unsigned>(LOWORD(message.lParam)));
-        if (message.message == WM_APP + 10) LogLineF(L"tray: hwnd=%p lparam=0x%04X", reinterpret_cast<void*>(message.hwnd), static_cast<unsigned>(LOWORD(message.lParam)));
-        if (message.message == WM_APP + 10 && LOWORD(message.lParam) == WM_RBUTTONUP)
+        else if (message.message == WM_APP + 10)
         {
-            HMENU menu = CreatePopupMenu();
-            AppendMenuW(menu, MF_STRING, 2001, i18n::T(L"tray.show"));
-            SetMenuDefaultItem(menu, 2001, FALSE);  // bold, the usual default
-            AppendMenuW(menu, MF_STRING, 2002, i18n::T(L"tray.quit"));
-            POINT point{};
-            GetCursorPos(&point);
-            SetForegroundWindow(hwnd);
-            int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, nullptr);
-            DestroyMenu(menu);
-            if (command == 2001)
+            const WORD event = LOWORD(message.lParam);
+            LogLineF(L"tray: event=0x%04X hwnd=%p", static_cast<unsigned>(event),
+                     reinterpret_cast<void*>(message.hwnd));
+            if (event == WM_RBUTTONUP)
             {
+                HMENU menu = CreatePopupMenu();
+                AppendMenuW(menu, MF_STRING, 2001, i18n::T(L"tray.show"));
+                SetMenuDefaultItem(menu, 2001, FALSE);  // bold, the usual default
+                AppendMenuW(menu, MF_STRING, 2002, i18n::T(L"tray.quit"));
+
+                POINT point{};
+                GetCursorPos(&point);
+                SetForegroundWindow(hwnd);
+                const int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0,
+                                                   hwnd, nullptr);
+                DestroyMenu(menu);
+                // Required so the menu closes cleanly and the next click arrives.
+                PostMessageW(hwnd, WM_NULL, 0, 0);
+
+                LogLineF(L"tray: menu command=%d", command);
+                if (command == 2001)
+                {
+                    ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+                }
+                else if (command == 2002)
+                {
+                    PostQuitMessage(0);
+                }
+            }
+            else if (event == WM_LBUTTONDBLCLK || event == WM_LBUTTONUP)
+            {
+                LogLineF(L"tray: open main window");
                 ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
             }
-            else if (command == 2002)
-            {
-                PostQuitMessage(0);
-            }
-        }
-        else if (message.message == WM_APP + 10 && LOWORD(message.lParam) == WM_LBUTTONDBLCLK)
-        {
-            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         }
         TranslateMessage(&message);
         DispatchMessageW(&message);
