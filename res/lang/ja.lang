@@ -1,5 +1,6 @@
 lang.native_name=日本語
 lang.code=ja
+lang.system=システムに合わせる
 
 app.title=アンインストールアイコンは不要
 app.subtitle=スタートメニューのショートカットを隠します

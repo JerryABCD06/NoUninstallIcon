@@ -1,5 +1,6 @@
 lang.native_name=繁體中文
 lang.code=zh-Hant
+lang.system=跟隨系統
 
 app.title=我不需要卸載圖標
 app.subtitle=隱藏開始功能表中的捷徑

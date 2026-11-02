@@ -1,5 +1,6 @@
 lang.native_name=English
 lang.code=en
+lang.system=System
 
 app.title=No Uninstall Icon
 app.subtitle=Hide shortcuts from the Start menu

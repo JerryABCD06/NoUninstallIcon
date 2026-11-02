@@ -1,5 +1,6 @@
 lang.native_name=Deutsch
 lang.code=de
+lang.system=Systemsprache
 
 app.title=Keine Deinstallations-Symbole
 app.subtitle=Verknüpfungen aus dem Startmenü ausblenden

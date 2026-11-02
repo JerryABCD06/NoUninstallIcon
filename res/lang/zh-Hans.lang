@@ -1,5 +1,6 @@
 lang.native_name=简体中文
 lang.code=zh-Hans
+lang.system=跟随系统
 
 app.title=我不需要卸载图标
 app.subtitle=隐藏开始菜单中的快捷方式
