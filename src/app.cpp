@@ -267,18 +267,6 @@ void App::HandleAutostart(AutostartMode mode)
     std::thread([hwnd, mode]() {
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
         bool ok = (mode == AutostartMode::Off) ? RemoveAutostart() : InstallAutostart(mode);
-
-        // Watch modes own a long-running process; the others do not, so ask any
-        // instance still running from before to exit.
-        if (ok && mode != AutostartMode::Watch)  // silent also replaces a tray instance
-        {
-            HANDLE stop = OpenEventW(EVENT_MODIFY_STATE, FALSE, L"Local\\NoUninstallIcon.Stop");
-            if (stop)
-            {
-                SetEvent(stop);
-                CloseHandle(stop);
-            }
-        }
         CoUninitialize();
         if (hwnd) PostMessageW(hwnd, WM_APP_AUTOSTART_DONE, ok ? 1u : 0u, static_cast<LPARAM>(mode));
     }).detach();
@@ -367,13 +355,22 @@ int App::RunGui(int showCommand)
         store_.Settings().autostart = mode;
         store_.Save();
         window_.SetAutostartMode(mode);
-        // The task only runs at the next sign-in; start the watcher now so the
-        // tray icon appears immediately.
-        if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
-        {
-            const wchar_t* arguments = (mode == AutostartMode::Silent) ? L"--background --no-tray" : L"--background";
+        // The task only runs at the next sign-in, so start the watcher now. Any
+        // instance already running may be the other flavour, so ask it to leave
+        // and only start the requested one once it has released the slot.
+        std::thread([mode]() {
+            HANDLE stop = OpenEventW(EVENT_MODIFY_STATE, FALSE, L"Local\\NoUninstallIcon.Stop");
+            if (stop)
+            {
+                SetEvent(stop);
+                CloseHandle(stop);
+                std::this_thread::sleep_for(std::chrono::milliseconds(1500));
+            }
+            if (mode != AutostartMode::Watch && mode != AutostartMode::Silent) return;
+            const wchar_t* arguments =
+                (mode == AutostartMode::Silent) ? L"--background --no-tray" : L"--background";
             ShellExecuteW(nullptr, L"open", GetExePath().c_str(), arguments, nullptr, SW_SHOWNORMAL);
-        }
+        }).detach();
         if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
             window_.ShowToast(i18n::T(L"toast.watchOn"), false);
         if (mode == AutostartMode::Once) window_.ShowToast(i18n::T(L"toast.onceOn"), false);
@@ -562,14 +559,27 @@ int App::RunWatch(bool showTray)
     std::mutex applyMutex;
 
     auto watcher = [&](const KNOWNFOLDERID& folder) {
-        PWSTR path = nullptr;
-        if (FAILED(SHGetKnownFolderPath(folder, KF_FLAG_DEFAULT, nullptr, &path)) || !path) return;
-        std::wstring root = path;
-        CoTaskMemFree(path);
+        // NOUI_SCAN_ROOT points the watcher at a fixture folder for tests.
+        wchar_t overridePath[MAX_PATH]{};
+        std::wstring root;
+        if (GetEnvironmentVariableW(L"NOUI_SCAN_ROOT", overridePath, MAX_PATH) > 0)
+        {
+            root = overridePath;
+        }
+        else
+        {
+            PWSTR path = nullptr;
+            if (FAILED(SHGetKnownFolderPath(folder, KF_FLAG_DEFAULT, nullptr, &path)) || !path) return;
+            root = path;
+            CoTaskMemFree(path);
+        }
 
         HANDLE notification = FindFirstChangeNotificationW(
             root.c_str(), TRUE,
-            FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES);
+            // A shortcut rewritten in place changes only its size and timestamp,
+            // so those have to be watched as well as names and attributes.
+            FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES |
+                FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE);
         if (notification == INVALID_HANDLE_VALUE) return;
 
         while (!stop.stop_requested())
