@@ -1600,6 +1600,7 @@ void MainWindow::SetFocusTarget(FocusTarget target)
         composition_.clear();
     }
 
+    if (target != FocusTarget::Search) KillTimer(hwnd_, 3);
     if (target != FocusTarget::List) lastAnnouncedGroup_ = -1;
     if (target == FocusTarget::List && model_ && model_->RowCount() > 0 && focusRow_ < 0)
     {
