@@ -1924,6 +1924,13 @@ void MainWindow::ShowAutostartMenu()
         AppendMenuW(menu, flags, 1100 + i, labels[i]);
     }
 
+
+    if (IsPortableMode())
+    {
+        // The task lives in Windows, not in the portable folder: say so.
+        AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+        AppendMenuW(menu, MF_STRING | MF_GRAYED, 0, i18n::T(L"autostart.portable_note"));
+    }
     SetForegroundWindow(hwnd_);
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);

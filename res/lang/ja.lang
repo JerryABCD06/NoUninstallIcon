@@ -100,3 +100,4 @@ menu.hide=隠す
 menu.show=表示する
 menu.open_shortcut=ショートカットの場所を開く
 menu.open_target=リンク先の場所を開く
+autostart.portable_note=ポータブル モード: このフォルダ外にサインイン タスクを作成します

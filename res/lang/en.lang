@@ -100,3 +100,4 @@ menu.hide=Hide
 menu.show=Show
 menu.open_shortcut=Open shortcut location
 menu.open_target=Open target location
+autostart.portable_note=Portable mode: creates a sign-in task outside this folder
