@@ -2242,6 +2242,9 @@ void MainWindow::ShowContextMenu(int rowIndex)
 
     HMENU menu = CreatePopupMenu();
     AppendMenuW(menu, MF_STRING, 1301, willHide ? i18n::T(L"menu.hide") : i18n::T(L"menu.show"));
+    // The primary command is the menu default, which renders bold.
+    SetMenuDefaultItem(menu, 1301, FALSE);
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
     AppendMenuW(menu, MF_STRING, 1302, i18n::T(L"menu.open_shortcut"));
     AppendMenuW(menu, MF_STRING | (hasTarget ? 0 : MF_GRAYED), 1303, i18n::T(L"menu.open_target"));
 
