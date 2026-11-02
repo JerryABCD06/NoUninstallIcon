@@ -2394,14 +2394,11 @@ void MainWindow::PublishAccessibility(const Layout& layout)
     {
         listName = query_.empty() ? i18n::T(L"status.empty") : i18n::Tf(L"empty.search", {query_});
     }
-    add(a11y::Element::List, listName.c_str(), layout.list, UIA_ListControlTypeId,
-        listEmpty && focus_ == FocusTarget::List);
-    if (listEmpty)
-    {
-        // Same trick as the rows: a new runtime id per message so the reader
-        // speaks it again instead of treating it as the element already read.
-        elements.back().identity = static_cast<long long>(std::hash<std::wstring>{}(listName) & 0x7FFFFFFF);
-    }
+    // An empty list must not announce itself as a list: a screen reader enters
+    // it looking for items, finds none and says nothing. With no items the
+    // control is just the sentence it displays.
+    add(a11y::Element::List, listName.c_str(), layout.list,
+        listEmpty ? UIA_TextControlTypeId : UIA_ListControlTypeId, listEmpty && focus_ == FocusTarget::List);
 
     // The focused row is its own UIA element; materialising all 300+ rows would
     // make the tree far too heavy, so only the current one exists.
