@@ -605,17 +605,6 @@ int App::RunWatch(bool showTray)
     std::thread userWatcher(watcher, FOLDERID_Programs);
     std::thread machineWatcher(watcher, FOLDERID_CommonPrograms);
 
-    // The window process asks for a clean exit through this event.
-    const DWORD loopThread = GetCurrentThreadId();
-    HANDLE stopEvent = CreateEventW(nullptr, TRUE, FALSE, L"Local\\NoUninstallIcon.Stop");
-    if (stopEvent)
-    {
-        ResetEvent(stopEvent);
-        std::thread([stopEvent, loopThread]() {
-            WaitForSingleObject(stopEvent, INFINITE);
-            PostThreadMessageW(loopThread, WM_QUIT, 0, 0);
-        }).detach();
-    }
 
     // The tray window is always created; whether an icon is shown follows the
     // mode, so switching flavours never needs a restart.
