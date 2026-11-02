@@ -3,6 +3,7 @@
 #include "apply.h"
 #include "autostart.h"
 #include "i18n.h"
+#include "session.h"
 #include "tray.h"
 #include "util.h"
 
@@ -370,36 +371,21 @@ int App::RunGui(int showCommand)
         store_.Settings().autostart = mode;
         store_.Save();
         window_.SetAutostartMode(mode);
-        // The task only runs at the next sign-in, so start the watcher now. Any
-        // instance already running may be the other flavour, so ask it to leave
-        // and start the requested one once the slot is free. A generation stamp
-        // makes fast back-and-forth switching settle on the last choice instead
-        // of racing: a superseded starter gives up.
-        const unsigned generation = ++autostartGeneration_;
-        std::thread([this, mode, generation]() {
-            HANDLE stop = OpenEventW(EVENT_MODIFY_STATE, FALSE, L"Local\\NoUninstallIcon.Stop");
-            if (stop)
+        // Tell the watcher what it should be. It adjusts its own icon and exits
+        // when the mode stops wanting one, so nothing is restarted here and the
+        // icon never blinks. A watcher is started only when none is running.
+        session::Publish(static_cast<int>(mode));
+        if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
+        {
+            bool alreadyRunning = false;
+            if (HANDLE slot = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background"))
             {
-                SetEvent(stop);
-                CloseHandle(stop);
+                alreadyRunning = true;
+                CloseHandle(slot);
             }
-
-            // Wait for the previous instance to release the slot, rather than
-            // guessing a duration.
-            for (int attempt = 0; attempt < 40; ++attempt)
-            {
-                HANDLE running = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background");
-                if (!running) break;
-                CloseHandle(running);
-                std::this_thread::sleep_for(std::chrono::milliseconds(100));
-            }
-
-            if (generation != autostartGeneration_) return;  // a newer choice won
-            if (mode != AutostartMode::Watch && mode != AutostartMode::Silent) return;
-            const wchar_t* arguments =
-                (mode == AutostartMode::Silent) ? L"--background --no-tray" : L"--background";
-            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), arguments, nullptr, SW_SHOWNORMAL);
-        }).detach();
+            if (!alreadyRunning)
+                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL);
+        }
         if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
             window_.ShowToast(i18n::T(L"toast.watchOn"), false);
         if (mode == AutostartMode::Once) window_.ShowToast(i18n::T(L"toast.onceOn"), false);
@@ -422,6 +408,21 @@ int App::RunGui(int showCommand)
             if (!IsAutostartInstalled()) InstallAutostart(savedMode);
             CoUninitialize();
         }).detach();
+    }
+
+    // Bring the runtime in line with the saved mode: publish it so a running
+    // watcher adjusts, and start one when the mode wants it but none is running.
+    session::Publish(static_cast<int>(savedMode));
+    if (savedMode == AutostartMode::Watch || savedMode == AutostartMode::Silent)
+    {
+        bool alreadyRunning = false;
+        if (HANDLE slot = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background"))
+        {
+            alreadyRunning = true;
+            CloseHandle(slot);
+        }
+        if (!alreadyRunning)
+            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL);
     }
 
     if (!capturePath_.empty())
@@ -616,7 +617,8 @@ int App::RunWatch(bool showTray)
         }).detach();
     }
 
-    if (showTray)
+    // The tray window is always created; whether an icon is shown follows the
+    // mode, so switching flavours never needs a restart.
     {
         tray::Callbacks callbacks;
         callbacks.openWindow = []() {
@@ -651,17 +653,44 @@ int App::RunWatch(bool showTray)
             }
             PostQuitMessage(0);
         };
-        tray::Start(instance_, i18n::T(L"app.title"), callbacks);
+        if (tray::Start(instance_, i18n::T(L"app.title"), callbacks))
+            tray::SetVisible(store_.Settings().autostart == AutostartMode::Watch);
     }
 
+    // The watcher adjusts itself when the mode is published: no restart, so the
+    // tray icon never blinks and no window is left without a watcher.
+    HANDLE changeEvent = session::ChangeEvent();
     MSG message{};
-    while (GetMessageW(&message, nullptr, 0, 0) > 0)
+    bool running = true;
+    while (running)
     {
-        TranslateMessage(&message);
-        DispatchMessageW(&message);
+        const DWORD handleCount = changeEvent ? 1 : 0;
+        const DWORD wait = MsgWaitForMultipleObjects(handleCount, &changeEvent, FALSE, INFINITE, QS_ALLINPUT);
+        if (changeEvent && wait == WAIT_OBJECT_0)
+        {
+            const int mode = session::Mode();
+            const bool wantsTray = mode == static_cast<int>(AutostartMode::Watch);
+            const bool wantsWatching = wantsTray || mode == static_cast<int>(AutostartMode::Silent);
+            LogLineF(L"watcher: mode=%d tray=%d keep=%d", mode, wantsTray ? 1 : 0, wantsWatching ? 1 : 0);
+            if (showTray) tray::SetVisible(wantsTray);
+            ResetEvent(changeEvent);
+            if (!wantsWatching) running = false;
+            continue;
+        }
+
+        while (PeekMessageW(&message, nullptr, 0, 0, PM_REMOVE))
+        {
+            if (message.message == WM_QUIT)
+            {
+                running = false;
+                break;
+            }
+            TranslateMessage(&message);
+            DispatchMessageW(&message);
+        }
     }
 
-    if (showTray) tray::Stop();
+    tray::Stop();
     stop.request_stop();
     if (userWatcher.joinable()) userWatcher.join();
     if (machineWatcher.joinable()) machineWatcher.join();

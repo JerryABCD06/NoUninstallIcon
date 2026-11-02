@@ -18,6 +18,7 @@ NOTIFYICONDATAW gIcon{};
 HICON gIconHandle = nullptr;
 tray::Callbacks gCallbacks;
 UINT gTaskbarCreated = 0;
+bool gIconVisible = false;
 
 void ShowMenu(POINT anchor)
 {
@@ -54,6 +55,7 @@ bool AddIcon()
             NOTIFYICONDATAW version = gIcon;
             version.uVersion = NOTIFYICON_VERSION_4;
             const BOOL versioned = Shell_NotifyIconW(NIM_SETVERSION, &version);
+            gIconVisible = true;
             LogLineF(L"tray: added (attempt=%d version4=%d)", attempt, versioned ? 1 : 0);
             return true;
         }
@@ -171,11 +173,28 @@ bool tray::Start(HINSTANCE instance, const std::wstring& tooltip, Callbacks call
     return AddIcon();
 }
 
+void tray::SetVisible(bool visible)
+{
+    if (!gWindow) return;
+    if (visible)
+    {
+        if (!gIconVisible) AddIcon();
+        return;
+    }
+    if (gIconVisible)
+    {
+        Shell_NotifyIconW(NIM_DELETE, &gIcon);
+        gIconVisible = false;
+        LogLineF(L"tray: hidden on request");
+    }
+}
+
 void tray::Stop()
 {
     if (gWindow)
     {
         Shell_NotifyIconW(NIM_DELETE, &gIcon);
+        gIconVisible = false;
         LogLineF(L"tray: removed");
         DestroyWindow(gWindow);
         gWindow = nullptr;
