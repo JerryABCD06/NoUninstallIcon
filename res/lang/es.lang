@@ -106,6 +106,6 @@ menu.open_shortcut=Abrir ubicación del acceso directo
 menu.open_target=Abrir ubicación del destino
 
 autostart.portable_note=Modo portable: crea una tarea de inicio de sesión fuera de esta carpeta
-toast.watchOn=Vigila y vuelve a ocultar los iconos en cuanto una instalación los restaura. Se aplica tras reiniciar Windows o esta herramienta.
+toast.watchOn=Vigilancia activa: los iconos restaurados por una instalación se ocultan al instante.
 toast.onceOn=Oculta una vez en cada inicio de sesión y luego se cierra.
 autostart.silent=Vigilar (sin icono)

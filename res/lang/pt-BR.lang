@@ -106,6 +106,6 @@ menu.open_shortcut=Abrir local do atalho
 menu.open_target=Abrir local do destino
 
 autostart.portable_note=Modo portátil: cria uma tarefa de entrada fora desta pasta
-toast.watchOn=Monitora e oculta os ícones novamente assim que uma instalação os restaura. Vale após reiniciar o Windows ou esta ferramenta.
+toast.watchOn=Monitorando agora: os ícones restaurados por uma instalação são ocultados na hora.
 toast.onceOn=Oculta uma vez a cada entrada e depois encerra.
 autostart.silent=Monitorar (sem ícone)

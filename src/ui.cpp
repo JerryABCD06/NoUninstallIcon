@@ -1965,7 +1965,7 @@ void MainWindow::ShowAutostartMenu()
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);
 
-    if (command >= 1100 && command < 1103)
+    if (command >= 1100 && command < 1100 + count)
     {
         autostart_ = modes[command - 1100];
         RefreshText();

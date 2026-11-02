@@ -106,6 +106,6 @@ menu.open_shortcut=Apri posizione della scorciatoia
 menu.open_target=Apri posizione della destinazione
 
 autostart.portable_note=Modalità portatile: crea un'attività di accesso fuori da questa cartella
-toast.watchOn=Controlla e nasconde di nuovo le icone appena un'installazione le ripristina. Ha effetto dopo il riavvio di Windows o di questo strumento.
+toast.watchOn=Controllo attivo: le icone ripristinate da un'installazione vengono nascoste subito.
 toast.onceOn=Nasconde una volta a ogni accesso, poi si chiude.
 autostart.silent=Controlla (senza icona)

@@ -270,7 +270,7 @@ void App::HandleAutostart(AutostartMode mode)
 
         // Watch modes own a long-running process; the others do not, so ask any
         // instance still running from before to exit.
-        if (ok && mode != AutostartMode::Watch && mode != AutostartMode::Silent)
+        if (ok && mode != AutostartMode::Watch)  // silent also replaces a tray instance
         {
             HANDLE stop = OpenEventW(EVENT_MODIFY_STATE, FALSE, L"Local\\NoUninstallIcon.Stop");
             if (stop)
@@ -367,6 +367,13 @@ int App::RunGui(int showCommand)
         store_.Settings().autostart = mode;
         store_.Save();
         window_.SetAutostartMode(mode);
+        // The task only runs at the next sign-in; start the watcher now so the
+        // tray icon appears immediately.
+        if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
+        {
+            const wchar_t* arguments = (mode == AutostartMode::Silent) ? L"--background --no-tray" : L"--background";
+            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), arguments, nullptr, SW_SHOWNORMAL);
+        }
         if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
             window_.ShowToast(i18n::T(L"toast.watchOn"), false);
         if (mode == AutostartMode::Once) window_.ShowToast(i18n::T(L"toast.onceOn"), false);
