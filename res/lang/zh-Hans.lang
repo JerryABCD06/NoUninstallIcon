@@ -30,7 +30,7 @@ badge.external=已被其他方式隐藏
 
 action.rescan=重新扫描
 action.hide_group=全部隐藏
-action.unhide_group=全部取消
+action.unhide_group=全部取消隐藏
 action.restore_all=全部恢复
 action.open_location=打开文件位置
 action.copy_path=复制路径
@@ -43,7 +43,7 @@ toast.undo=撤销
 empty.search=没有匹配「{0}」的项
 hint.keys=空格键切换勾选 · 回车打开文件位置
 
-error.elevation=修改全局快捷方式需要管理员权限。
+error.elevation=修改所有用户的快捷方式需要管理员权限。
 error.store=状态文件写入失败。
 error.task=登录任务创建失败。
 error.task_removed=登录任务已移除。
@@ -56,8 +56,8 @@ tray.quit=退出
 
 about.button=关于
 about.title=关于
-about.free=这是自由软件。
-about.license=MIT 协议。
+about.free=本软件是自由软件。
+about.license=本软件采用 MIT 许可证发布。
 about.author=作者：
 about.ok=确定
 about.author_name=王云正

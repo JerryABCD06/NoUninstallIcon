@@ -65,7 +65,7 @@ private:
         D2D1_RECT_F footer{};
         D2D1_RECT_F language{};
         D2D1_RECT_F autostartLabel{};
-        D2D1_RECT_F autostartTrack{};
+        D2D1_RECT_F autostartCombo{};
         D2D1_RECT_F scrollbar{};
         D2D1_RECT_F toast{};
         D2D1_RECT_F toastUndo{};
@@ -157,7 +157,8 @@ private:
     std::map<std::wstring, ComPtr<ID2D1Bitmap>> icons_;
 
     float langButtonWidth_ = 120.0f;
-    float autostartLabelWidth_ = 180.0f;
+    float autostartLabelWidth_ = 150.0f;
+    float autostartComboWidth_ = 150.0f;
     float aboutButtonWidth_ = 72.0f;
 
     float scale_ = 1.0f;

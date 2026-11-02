@@ -393,10 +393,15 @@ void MainWindow::RefreshText()
     IDWriteTextFormat* smallFormat = painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL);
     langButtonWidth_ = 12.0f + 16.0f + 8.0f + painter_.TextWidth(langName, smallFormat, 200.0f) + 8.0f + 10.0f + 12.0f;
 
-    std::wstring label = i18n::T(L"toggle.autostart");
-    if (autostart_ != AutostartMode::Off) label += L"  \u00B7  " + ModeLabel(autostart_);
     IDWriteTextFormat* labelFormat = painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL);
-    autostartLabelWidth_ = std::min(320.0f, painter_.TextWidth(label, labelFormat, 320.0f));
+    autostartLabelWidth_ = std::min(320.0f, painter_.TextWidth(i18n::T(L"toggle.autostart"), labelFormat, 320.0f));
+
+    // Size the combo to the widest of the three modes so switching does not
+    // make the footer jump around.
+    float modeWidth = 0.0f;
+    for (const wchar_t* text : {i18n::T(L"autostart.off"), i18n::T(L"autostart.once"), i18n::T(L"autostart.watch")})
+        modeWidth = std::max(modeWidth, painter_.TextWidth(text, labelFormat, 320.0f));
+    autostartComboWidth_ = modeWidth + 34.0f;
 
     IDWriteTextFormat* aboutFormat = painter_.Format(12.5f, DWRITE_FONT_WEIGHT_NORMAL);
     aboutButtonWidth_ = painter_.TextWidth(i18n::T(L"about.button"), aboutFormat, 260.0f) + 44.0f;
@@ -432,9 +437,9 @@ MainWindow::Layout MainWindow::ComputeLayout() const
     float midY = height - kFooterHeight * 0.5f;
     layout.language = Rect(rightEdge - langButtonWidth_, midY - 15.0f, rightEdge, midY + 15.0f);
 
-    float trackRight = layout.language.left - 20.0f;
-    layout.autostartTrack = Rect(trackRight - 40.0f, midY - 10.0f, trackRight, midY + 10.0f);
-    float labelRight = layout.autostartTrack.left - 10.0f;
+    float comboRight = layout.language.left - 16.0f;
+    layout.autostartCombo = Rect(comboRight - autostartComboWidth_, midY - 15.0f, comboRight, midY + 15.0f);
+    float labelRight = layout.autostartCombo.left - 8.0f;
     layout.autostartLabel = Rect(labelRight - autostartLabelWidth_, midY - 12.0f, labelRight, midY + 12.0f);
 
     float toastWidth = std::min(560.0f, width - 64.0f);
@@ -805,19 +810,18 @@ void MainWindow::DrawFooter(const Layout& layout)
                        layout.language.bottom),
                   theme_.textDim, DWRITE_TEXT_ALIGNMENT_CENTER, false);
 
-    // Autostart switch.
-    bool on = autostart_ != AutostartMode::Off;
-    painter_.FillRound(layout.autostartTrack, 10.0f, on ? theme_.toggleOn : theme_.toggleOff);
-    if (!on) painter_.StrokeRound(layout.autostartTrack, 10.0f, theme_.toggleOffBorder, 1.0f);
-    float knobRadius = 6.0f;
-    float knobX = on ? layout.autostartTrack.right - 10.0f : layout.autostartTrack.left + 10.0f;
-    painter_.Circle(D2D1::Point2F(knobX, layout.autostartTrack.top + 10.0f), knobRadius,
-                    on ? theme_.onAccent : theme_.toggleKnob);
+    // Autostart combo, styled like the language picker.
+    painter_.Text(i18n::T(L"toggle.autostart"), painter_.Format(12.0f, DWRITE_FONT_WEIGHT_NORMAL),
+                  layout.autostartLabel, theme_.textDim, DWRITE_TEXT_ALIGNMENT_TRAILING);
 
-    std::wstring label = i18n::T(L"toggle.autostart");
-    if (autostart_ != AutostartMode::Off) label += L"  \u00B7  " + ModeLabel(autostart_);
-    painter_.Text(label, painter_.Format(12.0f, DWRITE_FONT_WEIGHT_NORMAL), layout.autostartLabel,
-                  theme_.textDim, DWRITE_TEXT_ALIGNMENT_TRAILING);
+    const D2D1_RECT_F& combo = layout.autostartCombo;
+    painter_.FillRound(combo, 4.0f, hotControl_ == 4 ? theme_.hover : theme_.controlFill);
+    painter_.StrokeRound(combo, 4.0f, theme_.controlBorder, 0.0f);
+    painter_.Text(ModeLabel(autostart_), painter_.Format(12.0f, DWRITE_FONT_WEIGHT_NORMAL),
+                  Rect(combo.left + 12.0f, combo.top, combo.right - 22.0f, combo.bottom), theme_.text);
+    painter_.Text(L"\uE70D", painter_.IconFormat(8.0f),
+                  Rect(combo.right - 20.0f, combo.top, combo.right - 8.0f, combo.bottom), theme_.textDim,
+                  DWRITE_TEXT_ALIGNMENT_CENTER, false);
 }
 
 void MainWindow::DrawScrollbar(const Layout& layout)
@@ -937,7 +941,7 @@ void MainWindow::OnMouseMove(int x, int y)
         if (ContainsPoint(layout.rescan, fx, fy)) control = 1;
         else if (ContainsPoint(layout.restoreAll, fx, fy)) control = 2;
         else if (ContainsPoint(layout.language, fx, fy)) control = 3;
-        else if (ContainsPoint(layout.autostartTrack, fx, fy) || ContainsPoint(layout.autostartLabel, fx, fy)) control = 4;
+        else if (ContainsPoint(layout.autostartCombo, fx, fy) || ContainsPoint(layout.autostartLabel, fx, fy)) control = 4;
         else if (ContainsPoint(layout.search, fx, fy)) control = 5;
         else if (ContainsPoint(layout.aboutButton, fx, fy)) control = 6;
     }
@@ -1034,17 +1038,9 @@ void MainWindow::OnLeftDown(int x, int y)
         ShowLanguageMenu();
         return;
     }
-    if (ContainsPoint(layout.autostartLabel, fx, fy))
+    if (ContainsPoint(layout.autostartCombo, fx, fy) || ContainsPoint(layout.autostartLabel, fx, fy))
     {
         ShowAutostartMenu();
-        return;
-    }
-    if (ContainsPoint(layout.autostartTrack, fx, fy))
-    {
-        AutostartMode next = autostart_ == AutostartMode::Off ? AutostartMode::Once : AutostartMode::Off;
-        autostart_ = next;
-        RefreshText();
-        if (callbacks.autostartChanged) callbacks.autostartChanged(next);
         return;
     }
 
@@ -1339,8 +1335,8 @@ void MainWindow::ShowLanguageMenu()
 void MainWindow::ShowAutostartMenu()
 {
     Layout layout = ComputeLayout();
-    POINT point{static_cast<LONG>(layout.autostartLabel.left * scale_),
-                static_cast<LONG>(layout.footer.top * scale_)};
+    POINT point{static_cast<LONG>(layout.autostartCombo.left * scale_),
+                static_cast<LONG>(layout.autostartCombo.bottom * scale_)};
     ClientToScreen(hwnd_, &point);
 
     HMENU menu = CreatePopupMenu();

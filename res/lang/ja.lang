@@ -56,8 +56,8 @@ tray.quit=終了
 
 about.button=このアプリについて
 about.title=このアプリについて
-about.free=自由ソフトウェアです。
-about.license=MIT ライセンスで公開しています。
+about.free=本ソフトウェアは自由ソフトウェアです。
+about.license=本ソフトウェアは MIT ライセンスで公開されています。
 about.author=作者：
 about.ok=OK
 about.author_name=王云正

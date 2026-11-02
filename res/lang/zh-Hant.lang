@@ -30,7 +30,7 @@ badge.external=已被其他方式隱藏
 
 action.rescan=重新掃描
 action.hide_group=全部隱藏
-action.unhide_group=全部取消
+action.unhide_group=全部取消隱藏
 action.restore_all=全部還原
 action.open_location=開啟檔案位置
 action.copy_path=複製路徑
@@ -43,7 +43,7 @@ toast.undo=復原
 empty.search=沒有符合「{0}」的項目
 hint.keys=空格鍵切換勾選 · Enter 開啟檔案位置
 
-error.elevation=修改全域捷徑需要系統管理員權限。
+error.elevation=修改所有使用者的捷徑需要系統管理員權限。
 error.store=狀態檔寫入失敗。
 error.task=登入工作建立失敗。
 error.task_removed=登入工作已移除。
@@ -56,8 +56,8 @@ tray.quit=結束
 
 about.button=關於
 about.title=關於
-about.free=這是自由軟體。
-about.license=MIT 授權條款。
+about.free=本軟體是自由軟體。
+about.license=本軟體採用 MIT 授權條款發布。
 about.author=作者：
 about.ok=確定
 about.author_name=王云正
