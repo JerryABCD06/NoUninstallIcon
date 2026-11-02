@@ -612,7 +612,17 @@ int App::RunWatch(bool showTray)
         }
         return FALSE;
     };
-    LogLineF(L"tray: add=%d hwnd=%p showTray=%d", addIcon() ? 1 : 0, reinterpret_cast<void*>(hwnd),
+    const BOOL trayAdded = addIcon();
+    if (trayAdded)
+    {
+        // Version 4 is what makes the shell report a right click as WM_CONTEXTMENU
+        // and carry the anchor point in wParam.
+        NOTIFYICONDATAW version = icon;
+        version.uVersion = NOTIFYICON_VERSION_4;
+        const BOOL versioned = Shell_NotifyIconW(NIM_SETVERSION, &version);
+        LogLineF(L"tray: version4=%d err=%lu", versioned ? 1 : 0, GetLastError());
+    }
+    LogLineF(L"tray: add=%d hwnd=%p showTray=%d", trayAdded ? 1 : 0, reinterpret_cast<void*>(hwnd),
              showTray ? 1 : 0);
 
     std::stop_source stop;
@@ -691,7 +701,7 @@ int App::RunWatch(bool showTray)
             const WORD event = LOWORD(message.lParam);
             LogLineF(L"tray: event=0x%04X hwnd=%p", static_cast<unsigned>(event),
                      reinterpret_cast<void*>(message.hwnd));
-            if (event == WM_RBUTTONUP)
+            if (event == WM_CONTEXTMENU || event == WM_RBUTTONUP)
             {
                 HMENU menu = CreatePopupMenu();
                 AppendMenuW(menu, MF_STRING, 2001, i18n::T(L"tray.show"));
@@ -699,6 +709,16 @@ int App::RunWatch(bool showTray)
                 AppendMenuW(menu, MF_STRING, 2002, i18n::T(L"tray.quit"));
 
                 POINT point{};
+                // Version 4 puts the anchor point in wParam as packed screen coordinates.
+                if (event == WM_CONTEXTMENU && message.wParam)
+                {
+                    point.x = static_cast<short>(LOWORD(message.wParam));
+                    point.y = static_cast<short>(HIWORD(message.wParam));
+                }
+                else
+                {
+                    GetCursorPos(&point);
+                }
                 GetCursorPos(&point);
                 SetForegroundWindow(hwnd);
                 const int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0,
