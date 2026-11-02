@@ -178,11 +178,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wparam));
         return 0;
     case WM_KEYDOWN:
-        if (gKeyLog) LogLineF(L"key: down vk=%02X", static_cast<unsigned>(wparam));
+        if (gKeyLog || wparam == VK_APPS || wparam == VK_F10) LogLineF(L"key: down vk=%02X", static_cast<unsigned>(wparam));
         OnKeyDown(wparam);
         return 0;
     case WM_SYSKEYDOWN:
-        if (gKeyLog) LogLineF(L"key: sys  vk=%02X", static_cast<unsigned>(wparam));
+        if (gKeyLog || wparam == VK_APPS || wparam == VK_F10) LogLineF(L"key: sys  vk=%02X", static_cast<unsigned>(wparam));
         // F10 and the menu key can arrive as system keys when modified.
         if (wparam == VK_F10 || wparam == VK_APPS)
         {
