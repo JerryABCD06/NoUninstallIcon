@@ -3,6 +3,7 @@
 #include "apply.h"
 #include "autostart.h"
 #include "i18n.h"
+#include "tray.h"
 #include "util.h"
 
 #include <chrono>
@@ -551,83 +552,21 @@ int App::RunCleanup()
 
 int App::RunWatch(bool showTray)
 {
-
-    // One background instance only: the sign-in task and a manual launch must
-    // not both own a tray icon.
+    // Only one watcher may run; the sign-in task normally owns it.
     HANDLE slot = CreateMutexW(nullptr, FALSE, L"Local\\NoUninstallIcon.Background");
     if (slot && GetLastError() == ERROR_ALREADY_EXISTS)
     {
         CloseHandle(slot);
         return 0;
     }
+
     ApplyDesired(true);
-
-    // Hidden window so the tray icon gets its messages.
-    WNDCLASSEXW wc{};
-    wc.cbSize = sizeof(wc);
-    wc.lpfnWndProc = DefWindowProcW;
-    wc.hInstance = instance_;
-    wc.lpszClassName = kWndClass;
-    RegisterClassExW(&wc);
-    // A real (but never shown) top-level window: the shell cannot deliver tray
-    // callbacks to a message-only window, which is why clicks did nothing.
-    HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW, kWndClass, L"NoUninstallIcon", WS_POPUP,
-                                0, 0, 0, 0, nullptr, nullptr, instance_, nullptr);
-
-    NOTIFYICONDATAW icon{};
-    icon.cbSize = sizeof(icon);
-    icon.hWnd = hwnd;
-    icon.uID = 1;
-    icon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
-    icon.uCallbackMessage = WM_APP + 10;
-    icon.hIcon = static_cast<HICON>(LoadImageW(instance_, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR));
-    if (!icon.hIcon) icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
-    wcscpy_s(icon.szTip, i18n::T(L"app.title"));
-    // The shell may not be ready yet (early logon start, Explorer restart), and
-    // then the registration is refused; retry, and re-add when TaskbarCreated
-    // arrives.
-    const UINT taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
-
-    // The watcher runs elevated, so Explorer (medium integrity) cannot post the
-    // tray callback or the shell-restart notice to this window: user interface
-    // isolation drops them silently. Let those two messages through.
-    SetLastError(0);
-    const BOOL filterPerWindow = ChangeWindowMessageFilterEx(hwnd, WM_APP + 10, MSGFLT_ALLOW, nullptr);
-    const DWORD filterError = GetLastError();
-    const BOOL filterLegacy = ChangeWindowMessageFilter(WM_APP + 10, MSGFLT_ADD);
-    if (taskbarCreated) ChangeWindowMessageFilterEx(hwnd, taskbarCreated, MSGFLT_ALLOW, nullptr);
-    LogLineF(L"tray: filter perWindow=%d err=%lu legacy=%d elevated=%d",
-             filterPerWindow ? 1 : 0, filterError, filterLegacy ? 1 : 0, IsElevated() ? 1 : 0);
-    auto addIcon = [&]() {
-        if (!showTray) return TRUE;
-        Shell_NotifyIconW(NIM_DELETE, &icon);
-        for (int attempt = 0; attempt < 10; ++attempt)
-        {
-            if (Shell_NotifyIconW(NIM_ADD, &icon)) return TRUE;
-            const DWORD error = GetLastError();
-            LogLineF(L"tray: add failed attempt=%d err=%lu", attempt + 1, error);
-            std::this_thread::sleep_for(std::chrono::milliseconds(500));
-        }
-        return FALSE;
-    };
-    const BOOL trayAdded = addIcon();
-    if (trayAdded)
-    {
-        // Version 4 is what makes the shell report a right click as WM_CONTEXTMENU
-        // and carry the anchor point in wParam.
-        NOTIFYICONDATAW version = icon;
-        version.uVersion = NOTIFYICON_VERSION_4;
-        const BOOL versioned = Shell_NotifyIconW(NIM_SETVERSION, &version);
-        LogLineF(L"tray: version4=%d err=%lu", versioned ? 1 : 0, GetLastError());
-    }
-    LogLineF(L"tray: add=%d hwnd=%p showTray=%d", trayAdded ? 1 : 0, reinterpret_cast<void*>(hwnd),
-             showTray ? 1 : 0);
 
     std::stop_source stop;
     std::mutex applyMutex;
 
-    auto watcher = [&](const KNOWNFOLDERID& folder) {
-        // NOUI_SCAN_ROOT points the watcher at a fixture folder for tests.
+    auto watcher = [&](const KNOWNFOLDERID& folder)
+    {
         wchar_t overridePath[MAX_PATH]{};
         std::wstring root;
         if (GetEnvironmentVariableW(L"NOUI_SCAN_ROOT", overridePath, MAX_PATH) > 0)
@@ -644,36 +583,28 @@ int App::RunWatch(bool showTray)
 
         HANDLE notification = FindFirstChangeNotificationW(
             root.c_str(), TRUE,
-            // A shortcut rewritten in place changes only its size and timestamp,
-            // so those have to be watched as well as names and attributes.
             FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES |
                 FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE);
         if (notification == INVALID_HANDLE_VALUE) return;
 
         while (!stop.stop_requested())
         {
-            DWORD wait = WaitForSingleObject(notification, 400);
-            if (wait == WAIT_OBJECT_0)
+            if (WaitForSingleObject(notification, 400) != WAIT_OBJECT_0) continue;
+            std::this_thread::sleep_for(std::chrono::milliseconds(350));
             {
-                // Let the installer finish writing before re-applying.
-                std::this_thread::sleep_for(std::chrono::milliseconds(350));
-                {
-                    std::lock_guard<std::mutex> guard(applyMutex);
-                    // The GUI may have added or removed records since we started;
-                    // reload so a re-apply never writes back a stale list.
-                    store_.Load();
-                    ApplyDesired(true);
-                }
-                if (!FindNextChangeNotification(notification)) break;
+                std::lock_guard<std::mutex> guard(applyMutex);
+                store_.Load();
+                ApplyDesired(true);
             }
+            if (!FindNextChangeNotification(notification)) break;
         }
         FindCloseChangeNotification(notification);
     };
+
     std::thread userWatcher(watcher, FOLDERID_Programs);
     std::thread machineWatcher(watcher, FOLDERID_CommonPrograms);
 
-    // The window process signals this event when the mode no longer needs a
-    // background, so switching the setting off also stops the running instance.
+    // The window process asks for a clean exit through this event.
     const DWORD loopThread = GetCurrentThreadId();
     HANDLE stopEvent = CreateEventW(nullptr, TRUE, FALSE, L"Local\\NoUninstallIcon.Stop");
     if (stopEvent)
@@ -685,72 +616,27 @@ int App::RunWatch(bool showTray)
         }).detach();
     }
 
+    if (showTray)
+    {
+        tray::Callbacks callbacks;
+        callbacks.openWindow = []() {
+            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        };
+        callbacks.quit = []() { PostQuitMessage(0); };
+        tray::Start(instance_, i18n::T(L"app.title"), callbacks);
+    }
+
     MSG message{};
     while (GetMessageW(&message, nullptr, 0, 0) > 0)
     {
-        if (taskbarCreated && message.message == taskbarCreated)
-        {
-            // Explorer restarted and dropped the icon: put it back.
-            LogLineF(L"tray: shell restarted, re-adding");
-            addIcon();
-        }
-        else if (message.message == WM_APP + 10)
-        {
-            const WORD event = LOWORD(message.lParam);
-            LogLineF(L"tray: event=0x%04X hwnd=%p", static_cast<unsigned>(event),
-                     reinterpret_cast<void*>(message.hwnd));
-            if (event == WM_CONTEXTMENU || event == WM_RBUTTONUP)
-            {
-                HMENU menu = CreatePopupMenu();
-                AppendMenuW(menu, MF_STRING, 2001, i18n::T(L"tray.show"));
-                SetMenuDefaultItem(menu, 2001, FALSE);  // bold, the usual default
-                AppendMenuW(menu, MF_STRING, 2002, i18n::T(L"tray.quit"));
-
-                POINT point{};
-                // Version 4 puts the anchor point in wParam as packed screen coordinates.
-                if (event == WM_CONTEXTMENU && message.wParam)
-                {
-                    point.x = static_cast<short>(LOWORD(message.wParam));
-                    point.y = static_cast<short>(HIWORD(message.wParam));
-                }
-                else
-                {
-                    GetCursorPos(&point);
-                }
-                GetCursorPos(&point);
-                SetForegroundWindow(hwnd);
-                const int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0,
-                                                   hwnd, nullptr);
-                DestroyMenu(menu);
-                // Required so the menu closes cleanly and the next click arrives.
-                PostMessageW(hwnd, WM_NULL, 0, 0);
-
-                LogLineF(L"tray: menu command=%d", command);
-                if (command == 2001)
-                {
-                    ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-                }
-                else if (command == 2002)
-                {
-                    PostQuitMessage(0);
-                }
-            }
-            else if (event == WM_LBUTTONDBLCLK)
-            {
-                LogLineF(L"tray: open main window");
-                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
-            }
-        }
         TranslateMessage(&message);
         DispatchMessageW(&message);
     }
 
+    if (showTray) tray::Stop();
     stop.request_stop();
     if (userWatcher.joinable()) userWatcher.join();
     if (machineWatcher.joinable()) machineWatcher.join();
-
-    if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);
-    LogLineF(L"tray: removed");
     return 0;
 }
 
