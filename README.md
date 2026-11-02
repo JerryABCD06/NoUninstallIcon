@@ -166,7 +166,9 @@ in a message.
 
 `src/tray.cpp` owns it; nothing else in the program touches `Shell_NotifyIcon`.
 
-- The icon window is always created, and whether an icon appears follows the mode,\n  so changing modes never restarts the process.\n- The icon window is a real (never shown) top-level window. A message-only window
+- The icon window is always created; whether an icon appears follows the mode, so
+  changing modes never restarts the process.
+- The window is a real (never shown) top-level window. A message-only window
   looks fine but the shell cannot deliver clicks to it.
 - After every `NIM_ADD` the icon switches to `NOTIFYICON_VERSION_4`. That matters:
   in version 4 a right click arrives as **`WM_CONTEXTMENU` in the low word of the
