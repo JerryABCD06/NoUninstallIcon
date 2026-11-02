@@ -174,7 +174,7 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         OnKeyDown(wparam);
         return 0;
     case WM_SYSKEYDOWN:
-        // F10 is a system key, so Shift+F10 arrives here and not as WM_KEYDOWN.
+        // F10 and the menu key can arrive as system keys when modified.
         if (wparam == VK_F10 || wparam == VK_APPS)
         {
             OnKeyDown(wparam);
