@@ -1387,6 +1387,16 @@ void MainWindow::OnKeyDown(WPARAM key)
         return;
     }
 
+    // The menu key and Shift+F10 open the context menu for whatever has focus.
+    if (key == VK_APPS || (key == VK_F10 && shift))
+    {
+        if (focus_ == FocusTarget::List && model_ && focusRow_ >= 0)
+            ShowContextMenu(focusRow_, true);
+        else if (focus_ == FocusTarget::Search)
+            ShowSearchMenu();
+        return;
+    }
+
     switch (focus_)
     {
     case FocusTarget::Search:
@@ -2228,7 +2238,7 @@ void MainWindow::OnRightClick(int x, int y)
     ShowSearchMenu();
 }
 
-void MainWindow::ShowContextMenu(int rowIndex)
+void MainWindow::ShowContextMenu(int rowIndex, bool fromKeyboard)
 {
     if (!model_) return;
     const ShortcutItem* item = model_->At(rowIndex);

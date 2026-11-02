@@ -168,7 +168,7 @@ private:
     int RowAtPoint(float y, float* rowTop) const;
     void ShowLanguageMenu();
     void ShowAutostartMenu();
-    void ShowContextMenu(int rowIndex);
+    void ShowContextMenu(int rowIndex, bool fromKeyboard = false);
     void ClampScroll();
     void ReportError(const std::wstring& text);
 
