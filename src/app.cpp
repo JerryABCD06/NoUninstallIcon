@@ -689,7 +689,7 @@ int App::RunWatch(bool showTray)
                     PostQuitMessage(0);
                 }
             }
-            else if (event == WM_LBUTTONDBLCLK || event == WM_LBUTTONUP)
+            else if (event == WM_LBUTTONDBLCLK)
             {
                 LogLineF(L"tray: open main window");
                 ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
