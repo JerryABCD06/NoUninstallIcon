@@ -578,12 +578,7 @@ int App::RunWatch(bool showTray)
     icon.cbSize = sizeof(icon);
     icon.hWnd = hwnd;
     icon.uID = 1;
-    // A fixed identity for the icon. Without one the shell keys it by window
-    // handle, and a stale registration from an earlier process can keep
-    // absorbing the clicks meant for this one.
-    static const GUID kTrayGuid = {0x6f1c2b84, 0x9a3e, 0x4d21, {0x8c, 0x7a, 0x51, 0x2e, 0x4b, 0x9d, 0x33, 0x10}};
-    icon.guidItem = kTrayGuid;
-    icon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_GUID;
+    icon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
     icon.uCallbackMessage = WM_APP + 10;
     icon.hIcon = static_cast<HICON>(LoadImageW(instance_, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR));
     if (!icon.hIcon) icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
@@ -596,13 +591,16 @@ int App::RunWatch(bool showTray)
     // The watcher runs elevated, so Explorer (medium integrity) cannot post the
     // tray callback or the shell-restart notice to this window: user interface
     // isolation drops them silently. Let those two messages through.
-    ChangeWindowMessageFilterEx(hwnd, WM_APP + 10, MSGFLT_ALLOW, nullptr);
+    SetLastError(0);
+    const BOOL filterPerWindow = ChangeWindowMessageFilterEx(hwnd, WM_APP + 10, MSGFLT_ALLOW, nullptr);
+    const DWORD filterError = GetLastError();
+    const BOOL filterLegacy = ChangeWindowMessageFilter(WM_APP + 10, MSGFLT_ADD);
     if (taskbarCreated) ChangeWindowMessageFilterEx(hwnd, taskbarCreated, MSGFLT_ALLOW, nullptr);
-    LogLineF(L"tray: message filter opened (elevated=%d)",
-             IsElevated() ? 1 : 0);
+    LogLineF(L"tray: filter perWindow=%d err=%lu legacy=%d elevated=%d",
+             filterPerWindow ? 1 : 0, filterError, filterLegacy ? 1 : 0, IsElevated() ? 1 : 0);
     auto addIcon = [&]() {
         if (!showTray) return TRUE;
-        Shell_NotifyIconW(NIM_DELETE, &icon);  // drop a stale registration with this GUID
+        Shell_NotifyIconW(NIM_DELETE, &icon);
         for (int attempt = 0; attempt < 10; ++attempt)
         {
             if (Shell_NotifyIconW(NIM_ADD, &icon)) return TRUE;
@@ -751,7 +749,7 @@ int App::RunWatch(bool showTray)
     if (userWatcher.joinable()) userWatcher.join();
     if (machineWatcher.joinable()) machineWatcher.join();
 
-    if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);  // same GUID, so this removes ours only
+    if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);
     LogLineF(L"tray: removed");
     return 0;
 }
