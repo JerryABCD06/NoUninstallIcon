@@ -29,6 +29,7 @@ struct Options
     std::wstring path;
     std::wstring capturePath;
     std::wstring previewQuery;
+    int previewFocus = -1;
     bool showAbout = false;
     bool themeSpecified = false;
     bool darkTheme = false;
@@ -87,6 +88,10 @@ Options ParseOptions(int argc, wchar_t** argv)
         {
             options.previewQuery = argv[++i];
         }
+        else if (EqualsI(arg, L"--focus") && i + 1 < argc)
+        {
+            options.previewFocus = _wtoi(argv[++i]);
+        }
         else if (EqualsI(arg, L"--about"))
         {
             options.showAbout = true;
@@ -138,6 +143,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
         app.ScanBlocking();
         if (options.showAbout) app.SetAboutOpen(true);
         if (!options.previewQuery.empty()) app.SetPreviewQuery(options.previewQuery);
+        if (options.previewFocus >= 0) app.SetPreviewFocus(options.previewFocus);
         return app.RenderScreenshot(options.path, dark) ? 0 : 1;
     }
     case Options::Mode::Dump:

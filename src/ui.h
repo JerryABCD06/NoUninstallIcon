@@ -20,6 +20,18 @@ struct UiCallbacks
     std::function<void(bool ok, AutostartMode mode)> autostartDone;
 };
 
+enum class FocusTarget
+{
+    Search,
+    List,
+    Rescan,
+    RestoreAll,
+    HideUninstall,
+    Autostart,
+    Language,
+    About,
+};
+
 class MainWindow
 {
 public:
@@ -39,6 +51,7 @@ public:
     void RefreshText();
     void SetAboutOpen(bool open);
     void SetPreviewQuery(const std::wstring& text);
+    void SetPreviewFocus(int index);
     bool IsAboutOpen() const { return aboutOpen_; }
 
     // Off-screen rendering (used by --screenshot).
@@ -118,6 +131,14 @@ private:
     ID2D1Bitmap* IconFor(const std::wstring& path, int size);
 
     void SetSearchFocus(bool focused);
+    void SetFocusTarget(FocusTarget target);
+    void CycleFocus(bool backwards);
+    void HandleSearchKey(WPARAM key, bool ctrl, bool shift);
+    void HandleListKey(WPARAM key);
+    void CycleAutostart(int delta);
+    void CycleLanguage(int delta);
+    void ApplyLanguage(const std::wstring& code);
+    void DrawFocusRing();
     void ShowSearchMenu();
     size_t CaretFromX(float x, const Layout& layout);
     void InsertText(const std::wstring& text);
@@ -168,6 +189,9 @@ private:
     bool toastUndoable_ = false;
     std::wstring toastText_;
     bool aboutOpen_ = false;
+    bool aboutFocusLink_ = false;
+    FocusTarget focus_ = FocusTarget::Search;
+    bool focusRingVisible_ = false;
 
     ComPtr<IWICImagingFactory> wic_;
     std::map<std::wstring, ComPtr<ID2D1Bitmap>> icons_;

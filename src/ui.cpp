@@ -230,6 +230,8 @@ void MainWindow::OnCreate()
 
     ApplyTheme();
     RefreshText();
+    SetFocusTarget(FocusTarget::Search);
+    focusRingVisible_ = false;
 }
 
 void MainWindow::ApplyTheme()
@@ -367,20 +369,7 @@ void MainWindow::FocusSearch()
 
 void MainWindow::SetSearchFocus(bool focused)
 {
-    searchFocused_ = focused;
-    caretVisible_ = true;
-    if (focused)
-    {
-        SetTimer(hwnd_, 1, 530, nullptr);
-        ImmAssociateContextEx(hwnd_, nullptr, IACE_DEFAULT);
-        UpdateImePosition();
-    }
-    else
-    {
-        KillTimer(hwnd_, 1);
-        composition_.clear();
-    }
-    Invalidate();
+    SetFocusTarget(focused ? FocusTarget::Search : FocusTarget::List);
 }
 
 void MainWindow::OnTimer(UINT_PTR id)
@@ -488,6 +477,7 @@ void MainWindow::Draw()
     DrawToolbar(layout);
     DrawList(layout);
     DrawFooter(layout);
+    DrawFocusRing();
     if (toastVisible_) DrawToast(layout);
     if (aboutOpen_) DrawAbout(layout);
 }
@@ -1026,6 +1016,7 @@ void MainWindow::OnLeftDown(int x, int y)
     float fx = static_cast<float>(x) / scale_;
     float fy = static_cast<float>(y) / scale_;
     Layout layout = ComputeLayout();
+    focusRingVisible_ = false;
 
     if (aboutOpen_)
     {
@@ -1058,7 +1049,7 @@ void MainWindow::OnLeftDown(int x, int y)
 
     if (ContainsPoint(layout.search, fx, fy))
     {
-        SetSearchFocus(true);
+        SetFocusTarget(FocusTarget::Search);
         if (!query_.empty() && fx > layout.search.right - 30.0f)
         {
             query_.clear();
@@ -1073,31 +1064,37 @@ void MainWindow::OnLeftDown(int x, int y)
         Invalidate();
         return;
     }
-    SetSearchFocus(false);
+    SetFocusTarget(FocusTarget::List);
 
     if (ContainsPoint(layout.rescan, fx, fy))
     {
+        SetFocusTarget(FocusTarget::Rescan);
         if (callbacks.rescan) callbacks.rescan();
         return;
     }
     if (ContainsPoint(layout.restoreAll, fx, fy))
     {
+        SetFocusTarget(FocusTarget::RestoreAll);
         if (callbacks.restoreAll) callbacks.restoreAll();
         return;
     }
     if (ContainsPoint(layout.aboutButton, fx, fy))
     {
+        SetFocusTarget(FocusTarget::About);
         aboutOpen_ = true;
+        aboutFocusLink_ = false;
         Invalidate();
         return;
     }
     if (ContainsPoint(layout.language, fx, fy))
     {
+        SetFocusTarget(FocusTarget::Language);
         ShowLanguageMenu();
         return;
     }
     if (ContainsPoint(layout.autostartCombo, fx, fy) || ContainsPoint(layout.autostartLabel, fx, fy))
     {
+        SetFocusTarget(FocusTarget::Autostart);
         ShowAutostartMenu();
         return;
     }
@@ -1109,6 +1106,7 @@ void MainWindow::OnLeftDown(int x, int y)
         D2D1_RECT_F action = GroupActionRect(headerRect, headerGroup);
         if (ContainsPoint(action, fx, fy))
         {
+            SetFocusTarget(FocusTarget::HideUninstall);
             if (callbacks.hideUninstallGroup) callbacks.hideUninstallGroup(!AllUninstallHidden());
             return;
         }
@@ -1125,6 +1123,7 @@ void MainWindow::OnLeftDown(int x, int y)
     }
     if (row >= 0)
     {
+        SetFocusTarget(FocusTarget::List);
         focusRow_ = row;
         bool onCheckbox = fx >= kCheckLeft - 8.0f && fx <= kCheckLeft + kCheckSize + 8.0f;
         if (onCheckbox && model_)
@@ -1185,141 +1184,222 @@ void MainWindow::EnsureVisible(int rowIndex)
 
 void MainWindow::OnKeyDown(WPARAM key)
 {
+    const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+    const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+    focusRingVisible_ = true;
+
     if (aboutOpen_)
     {
-        if (key == VK_ESCAPE || key == VK_RETURN || key == VK_SPACE)
+        if (key == VK_ESCAPE)
         {
             aboutOpen_ = false;
             Invalidate();
         }
-        return;
-    }
-    if (searchFocused_)
-    {
-        const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
-        const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
-
-        auto moveCaret = [this, shift](long delta) {
-            long next = static_cast<long>(caret_) + delta;
-            long limit = static_cast<long>(query_.size());
-            next = next < 0 ? 0 : (next > limit ? limit : next);
-            caret_ = static_cast<size_t>(next);
-            if (!shift) anchor_ = caret_;
-            caretVisible_ = true;
-            Invalidate();
-        };
-
-        switch (key)
+        else if (key == VK_TAB)
         {
-        case VK_ESCAPE:
-            if (HasSelection())
+            aboutFocusLink_ = !aboutFocusLink_;
+            Invalidate();
+        }
+        else if (key == VK_RETURN || key == VK_SPACE)
+        {
+            if (aboutFocusLink_)
             {
-                anchor_ = caret_;
-                Invalidate();
-            }
-            else if (!query_.empty())
-            {
-                query_.clear();
-                caret_ = anchor_ = 0;
-                UpdateQuery();
+                ShellExecuteW(nullptr, L"open", kAuthorUrl, nullptr, nullptr, SW_SHOWNORMAL);
             }
             else
             {
-                SetSearchFocus(false);
-            }
-            return;
-        case VK_LEFT:
-            moveCaret(-1);
-            return;
-        case VK_RIGHT:
-            moveCaret(1);
-            return;
-        case VK_HOME:
-            caret_ = 0;
-            if (!shift) anchor_ = caret_;
-            caretVisible_ = true;
-            Invalidate();
-            return;
-        case VK_END:
-            caret_ = query_.size();
-            if (!shift) anchor_ = caret_;
-            caretVisible_ = true;
-            Invalidate();
-            return;
-        case VK_BACK:
-            if (HasSelection())
-                DeleteSelection();
-            else if (caret_ > 0)
-            {
-                query_.erase(caret_ - 1, 1);
-                --caret_;
-                anchor_ = caret_;
-                UpdateQuery();
-            }
-            return;
-        case VK_DELETE:
-            if (HasSelection())
-                DeleteSelection();
-            else if (caret_ < query_.size())
-            {
-                query_.erase(caret_, 1);
-                anchor_ = caret_;
-                UpdateQuery();
-            }
-            return;
-        case 'A':
-            if (ctrl)
-            {
-                anchor_ = 0;
-                caret_ = query_.size();
+                aboutOpen_ = false;
                 Invalidate();
-                return;
             }
-            break;
-        case 'C':
-            if (ctrl)
-            {
-                CopySelection(false);
-                return;
-            }
-            break;
-        case 'X':
-            if (ctrl)
-            {
-                CopySelection(true);
-                return;
-            }
-            break;
-        case 'V':
-            if (ctrl)
-            {
-                PasteFromClipboard();
-                return;
-            }
-            break;
-        default:
-            break;
         }
+        return;
     }
+
+    if (ctrl && key == 'F')
+    {
+        SetFocusTarget(FocusTarget::Search);
+        return;
+    }
+
+    if (key == VK_TAB)
+    {
+        CycleFocus(shift);
+        return;
+    }
+
+    switch (focus_)
+    {
+    case FocusTarget::Search:
+        HandleSearchKey(key, ctrl, shift);
+        return;
+    case FocusTarget::List:
+        HandleListKey(key);
+        return;
+    case FocusTarget::Rescan:
+        if ((key == VK_RETURN || key == VK_SPACE) && callbacks.rescan) callbacks.rescan();
+        return;
+    case FocusTarget::RestoreAll:
+        if ((key == VK_RETURN || key == VK_SPACE) && callbacks.restoreAll) callbacks.restoreAll();
+        return;
+    case FocusTarget::HideUninstall:
+        if ((key == VK_RETURN || key == VK_SPACE) && callbacks.hideUninstallGroup)
+            callbacks.hideUninstallGroup(!AllUninstallHidden());
+        return;
+    case FocusTarget::Autostart:
+        if (key == VK_RETURN || key == VK_SPACE)
+            ShowAutostartMenu();
+        else if (key == VK_UP || key == VK_LEFT)
+            CycleAutostart(-1);
+        else if (key == VK_DOWN || key == VK_RIGHT)
+            CycleAutostart(1);
+        return;
+    case FocusTarget::Language:
+        if (key == VK_RETURN || key == VK_SPACE)
+            ShowLanguageMenu();
+        else if (key == VK_UP || key == VK_LEFT)
+            CycleLanguage(-1);
+        else if (key == VK_DOWN || key == VK_RIGHT)
+            CycleLanguage(1);
+        return;
+    case FocusTarget::About:
+        if (key == VK_RETURN || key == VK_SPACE)
+        {
+            aboutOpen_ = true;
+            aboutFocusLink_ = false;
+            Invalidate();
+        }
+        return;
+    }
+}
+
+void MainWindow::HandleSearchKey(WPARAM key, bool ctrl, bool shift)
+{
+    auto moveCaret = [this, shift](long delta) {
+        long next = static_cast<long>(caret_) + delta;
+        long limit = static_cast<long>(query_.size());
+        next = next < 0 ? 0 : (next > limit ? limit : next);
+        caret_ = static_cast<size_t>(next);
+        if (!shift) anchor_ = caret_;
+        caretVisible_ = true;
+        Invalidate();
+    };
+
+    switch (key)
+    {
+    case VK_ESCAPE:
+        if (HasSelection())
+        {
+            anchor_ = caret_;
+            Invalidate();
+        }
+        else if (!query_.empty())
+        {
+            query_.clear();
+            caret_ = anchor_ = 0;
+            UpdateQuery();
+        }
+        else
+        {
+            SetFocusTarget(FocusTarget::List);
+        }
+        return;
+    case VK_LEFT:
+        moveCaret(-1);
+        return;
+    case VK_RIGHT:
+        moveCaret(1);
+        return;
+    case VK_HOME:
+        caret_ = 0;
+        if (!shift) anchor_ = caret_;
+        caretVisible_ = true;
+        Invalidate();
+        return;
+    case VK_END:
+        caret_ = query_.size();
+        if (!shift) anchor_ = caret_;
+        caretVisible_ = true;
+        Invalidate();
+        return;
+    case VK_DOWN:
+        // Down from the field moves into the result list, like a combo box.
+        SetFocusTarget(FocusTarget::List);
+        return;
+    case VK_BACK:
+        if (HasSelection())
+            DeleteSelection();
+        else if (caret_ > 0)
+        {
+            query_.erase(caret_ - 1, 1);
+            --caret_;
+            anchor_ = caret_;
+            UpdateQuery();
+        }
+        return;
+    case VK_DELETE:
+        if (HasSelection())
+            DeleteSelection();
+        else if (caret_ < query_.size())
+        {
+            query_.erase(caret_, 1);
+            anchor_ = caret_;
+            UpdateQuery();
+        }
+        return;
+    case 'A':
+        if (ctrl)
+        {
+            anchor_ = 0;
+            caret_ = query_.size();
+            Invalidate();
+        }
+        return;
+    case 'C':
+        if (ctrl) CopySelection(false);
+        return;
+    case 'X':
+        if (ctrl) CopySelection(true);
+        return;
+    case 'V':
+        if (ctrl) PasteFromClipboard();
+        return;
+    default:
+        return;
+    }
+}
+
+void MainWindow::HandleListKey(WPARAM key)
+{
+    const int rows = model_ ? model_->RowCount() : 0;
+    if (rows <= 0) return;
 
     switch (key)
     {
     case VK_DOWN:
-        if (model_ && model_->RowCount() > 0)
+        focusRow_ = std::min(focusRow_ + 1, rows - 1);
+        if (focusRow_ < 0) focusRow_ = 0;
+        EnsureVisible(focusRow_);
+        Invalidate();
+        return;
+    case VK_UP:
+        if (focusRow_ <= 0)
+            SetFocusTarget(FocusTarget::Search);
+        else
         {
-            focusRow_ = std::min(focusRow_ + 1, model_->RowCount() - 1);
-            if (focusRow_ < 0) focusRow_ = 0;
+            focusRow_ = focusRow_ - 1;
             EnsureVisible(focusRow_);
             Invalidate();
         }
         return;
-    case VK_UP:
-        if (model_ && model_->RowCount() > 0)
-        {
-            focusRow_ = std::max(focusRow_ - 1, 0);
-            EnsureVisible(focusRow_);
-            Invalidate();
-        }
+    case VK_HOME:
+        focusRow_ = 0;
+        EnsureVisible(focusRow_);
+        Invalidate();
+        return;
+    case VK_END:
+        focusRow_ = rows - 1;
+        EnsureVisible(focusRow_);
+        Invalidate();
         return;
     case VK_NEXT:
         ScrollTo(scroll_ + (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f);
@@ -1327,32 +1407,154 @@ void MainWindow::OnKeyDown(WPARAM key)
     case VK_PRIOR:
         ScrollTo(scroll_ - (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f);
         return;
-    case VK_HOME:
-        ScrollTo(0.0f);
-        return;
-    case VK_END:
-        ScrollTo(contentHeightCache_);
-        return;
     case VK_SPACE:
-        if (!searchFocused_ && model_ && focusRow_ >= 0 && focusRow_ < model_->RowCount())
+        if (focusRow_ >= 0 && focusRow_ < rows)
         {
             const ShortcutItem* item = model_->At(focusRow_);
-            bool hidden = !(item->managed && item->desiredHidden);
-            if (callbacks.toggleItem) callbacks.toggleItem(model_->rows[focusRow_], hidden);
+            if (item)
+            {
+                bool hidden = !(item->managed && item->desiredHidden);
+                if (callbacks.toggleItem) callbacks.toggleItem(model_->rows[focusRow_], hidden);
+            }
         }
         return;
     case VK_RETURN:
-        if (model_ && focusRow_ >= 0 && focusRow_ < model_->RowCount() && callbacks.openLocation)
+        if (focusRow_ >= 0 && focusRow_ < rows && callbacks.openLocation)
             callbacks.openLocation(model_->rows[focusRow_]);
         return;
-    case 'F':
-        if (GetKeyState(VK_CONTROL) & 0x8000) SetSearchFocus(true);
-        return;
     default:
-        break;
+        return;
     }
 }
 
+void MainWindow::SetFocusTarget(FocusTarget target)
+{
+    focus_ = target;
+    searchFocused_ = (target == FocusTarget::Search);
+
+    if (searchFocused_)
+    {
+        SetTimer(hwnd_, 1, 530, nullptr);
+        ImmAssociateContextEx(hwnd_, nullptr, IACE_DEFAULT);
+        UpdateImePosition();
+    }
+    else
+    {
+        KillTimer(hwnd_, 1);
+        composition_.clear();
+    }
+
+    if (target == FocusTarget::List && model_ && model_->RowCount() > 0 && focusRow_ < 0)
+    {
+        focusRow_ = 0;
+        EnsureVisible(focusRow_);
+    }
+    Invalidate();
+}
+
+void MainWindow::CycleFocus(bool backwards)
+{
+    static const FocusTarget order[] = {FocusTarget::Search,  FocusTarget::List,     FocusTarget::Rescan,
+                                        FocusTarget::RestoreAll, FocusTarget::HideUninstall,
+                                        FocusTarget::Autostart, FocusTarget::Language, FocusTarget::About};
+    const int count = static_cast<int>(sizeof(order) / sizeof(order[0]));
+    int index = 0;
+    for (int i = 0; i < count; ++i)
+        if (order[i] == focus_) index = i;
+    index = (index + (backwards ? count - 1 : 1)) % count;
+    SetFocusTarget(order[index]);
+}
+
+void MainWindow::CycleAutostart(int delta)
+{
+    const AutostartMode modes[] = {AutostartMode::Off, AutostartMode::Once, AutostartMode::Watch};
+    int index = 0;
+    for (int i = 0; i < 3; ++i)
+        if (modes[i] == autostart_) index = i;
+    index = (index + delta + 3) % 3;
+    SetAutostartMode(modes[index]);
+    if (callbacks.autostartChanged) callbacks.autostartChanged(modes[index]);
+}
+
+void MainWindow::CycleLanguage(int delta)
+{
+    const auto& languages = i18n::Available();
+    if (languages.empty()) return;
+
+    int index = 0;
+    for (int i = 0; i < static_cast<int>(languages.size()); ++i)
+        if (EqualsI(languages[i].code, i18n::CurrentCode())) index = i;
+    index = (index + delta + static_cast<int>(languages.size())) % static_cast<int>(languages.size());
+    ApplyLanguage(languages[index].code);
+}
+
+void MainWindow::ApplyLanguage(const std::wstring& code)
+{
+    if (!i18n::SetLanguage(code)) return;
+    RefreshText();
+    if (model_)
+    {
+        model_->Recompute();
+        RebuildDisplay();
+    }
+    Invalidate();
+    if (callbacks.languageChanged) callbacks.languageChanged(code);
+}
+
+void MainWindow::DrawFocusRing()
+{
+    if (aboutOpen_ || !focusRingVisible_) return;
+
+    Layout layout = ComputeLayout();
+    D2D1_RECT_F rect{0.0f, 0.0f, 0.0f, 0.0f};
+    float radius = 4.0f;
+
+    switch (focus_)
+    {
+    case FocusTarget::Search:
+        rect = layout.search;
+        radius = kRadius;
+        break;
+    case FocusTarget::Rescan:
+        rect = layout.rescan;
+        break;
+    case FocusTarget::RestoreAll:
+        rect = layout.restoreAll;
+        break;
+    case FocusTarget::Autostart:
+        rect = layout.autostartCombo;
+        break;
+    case FocusTarget::Language:
+        rect = layout.language;
+        radius = kRadius;
+        break;
+    case FocusTarget::About:
+        rect = layout.aboutButton;
+        break;
+    case FocusTarget::HideUninstall:
+        for (const Entry& entry : entries_)
+        {
+            if (!entry.header) continue;
+            float top = layout.list.top + entry.top - scroll_;
+            rect = GroupActionRect(Rect(layout.list.left, top, layout.list.right, top + entry.height), 0);
+            break;
+        }
+        break;
+    case FocusTarget::List:
+        for (const Entry& entry : entries_)
+        {
+            if (entry.header || entry.value != focusRow_) continue;
+            float top = layout.list.top + entry.top - scroll_;
+            if (top + entry.height < layout.list.top || top > layout.list.bottom) break;
+            rect = Rect(layout.list.left + 8.0f, top + 2.0f, layout.list.right - 8.0f,
+                        top + entry.height - 2.0f);
+            break;
+        }
+        break;
+    }
+
+    if (rect.right > rect.left) painter_.StrokeRound(rect, radius, theme_.accent, 2.0f);
+}
 void MainWindow::OnChar(wchar_t ch)
 {
     if (!searchFocused_) return;
@@ -1466,18 +1668,7 @@ void MainWindow::ShowLanguageMenu()
 
     if (command >= 1000 && command < 1000 + static_cast<int>(languages.size()))
     {
-        const std::wstring code = languages[command - 1000].code;
-        if (i18n::SetLanguage(code))
-        {
-            RefreshText();
-            if (model_)
-            {
-                model_->Recompute();
-                RebuildDisplay();
-            }
-            Invalidate();
-            if (callbacks.languageChanged) callbacks.languageChanged(code);
-        }
+        ApplyLanguage(languages[command - 1000].code);
     }
     PostMessage(hwnd_, WM_NULL, 0, 0);
 }
@@ -1587,13 +1778,21 @@ void MainWindow::DrawAbout(const Layout& layout)
                   theme_.link);
     painter_.Text(kAuthorDisplay, painter_.Format(11.5f, DWRITE_FONT_WEIGHT_NORMAL),
                   Rect(left, card.top + 142.0f, right, card.top + 162.0f), theme_.textFaint);
-    if (hotControl_ == 8)
+    if (hotControl_ == 8 || aboutFocusLink_)
         painter_.Line(D2D1::Point2F(link.left, link.bottom - 2.0f),
                       D2D1::Point2F(link.right, link.bottom - 2.0f), theme_.link, 1.0f);
 
     painter_.FillRound(layout.dialogOk, 4.0f, theme_.accent);
     painter_.Text(i18n::T(L"about.ok"), painter_.Format(13.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD), layout.dialogOk,
                   theme_.onAccent, DWRITE_TEXT_ALIGNMENT_CENTER);
+
+    if (aboutFocusLink_)
+        painter_.StrokeRound(Rect(link.left - 5.0f, link.top + 1.0f, link.right + 5.0f, link.bottom - 1.0f),
+                             3.0f, theme_.accent, 2.0f);
+    else
+        painter_.StrokeRound(Rect(layout.dialogOk.left - 3.0f, layout.dialogOk.top - 3.0f,
+                                  layout.dialogOk.right + 3.0f, layout.dialogOk.bottom + 3.0f),
+                             6.0f, theme_.text, 1.5f);
 }
 namespace {
 
@@ -1832,6 +2031,15 @@ void MainWindow::ShowSearchMenu()
         break;
     }
 }
+void MainWindow::SetPreviewFocus(int index)
+{
+    if (index < 0) index = 0;
+    if (index > static_cast<int>(FocusTarget::About)) index = static_cast<int>(FocusTarget::About);
+    SetFocusTarget(static_cast<FocusTarget>(index));
+    focusRingVisible_ = true;
+    Invalidate();
+}
+
 void MainWindow::SetPreviewQuery(const std::wstring& text)
 {
     query_ = text.size() > kMaxQueryLength ? text.substr(0, kMaxQueryLength) : text;
