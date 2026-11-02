@@ -357,15 +357,29 @@ int App::RunGui(int showCommand)
         window_.SetAutostartMode(mode);
         // The task only runs at the next sign-in, so start the watcher now. Any
         // instance already running may be the other flavour, so ask it to leave
-        // and only start the requested one once it has released the slot.
-        std::thread([mode]() {
+        // and start the requested one once the slot is free. A generation stamp
+        // makes fast back-and-forth switching settle on the last choice instead
+        // of racing: a superseded starter gives up.
+        const unsigned generation = ++autostartGeneration_;
+        std::thread([this, mode, generation]() {
             HANDLE stop = OpenEventW(EVENT_MODIFY_STATE, FALSE, L"Local\\NoUninstallIcon.Stop");
             if (stop)
             {
                 SetEvent(stop);
                 CloseHandle(stop);
-                std::this_thread::sleep_for(std::chrono::milliseconds(1500));
             }
+
+            // Wait for the previous instance to release the slot, rather than
+            // guessing a duration.
+            for (int attempt = 0; attempt < 40; ++attempt)
+            {
+                HANDLE running = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background");
+                if (!running) break;
+                CloseHandle(running);
+                std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            }
+
+            if (generation != autostartGeneration_) return;  // a newer choice won
             if (mode != AutostartMode::Watch && mode != AutostartMode::Silent) return;
             const wchar_t* arguments =
                 (mode == AutostartMode::Silent) ? L"--background --no-tray" : L"--background";
