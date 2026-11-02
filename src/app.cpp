@@ -569,7 +569,23 @@ int App::RunWatch(bool showTray)
     icon.hIcon = static_cast<HICON>(LoadImageW(instance_, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR));
     if (!icon.hIcon) icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
     wcscpy_s(icon.szTip, i18n::T(L"app.title"));
-    if (showTray) Shell_NotifyIconW(NIM_ADD, &icon);
+    // The shell may not be ready yet (early logon start, Explorer restart), and
+    // then the registration is refused; retry, and re-add when TaskbarCreated
+    // arrives.
+    const UINT taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
+    auto addIcon = [&]() {
+        if (!showTray) return TRUE;
+        for (int attempt = 0; attempt < 10; ++attempt)
+        {
+            if (Shell_NotifyIconW(NIM_ADD, &icon)) return TRUE;
+            const DWORD error = GetLastError();
+            LogLineF(L"tray: add failed attempt=%d err=%lu", attempt + 1, error);
+            std::this_thread::sleep_for(std::chrono::milliseconds(500));
+        }
+        return FALSE;
+    };
+    LogLineF(L"tray: add=%d hwnd=%p showTray=%d", addIcon() ? 1 : 0, reinterpret_cast<void*>(hwnd),
+             showTray ? 1 : 0);
 
     std::stop_source stop;
     std::mutex applyMutex;
@@ -636,6 +652,14 @@ int App::RunWatch(bool showTray)
     MSG message{};
     while (GetMessageW(&message, nullptr, 0, 0) > 0)
     {
+        if (taskbarCreated && message.message == taskbarCreated)
+        {
+            // Explorer restarted: the icon is gone, put it back.
+            LogLineF(L"tray: shell restarted, re-adding");
+            addIcon();
+        }
+        else if (message.message == WM_APP + 10) LogLineF(L"tray: hwnd=%p lparam=0x%04X", reinterpret_cast<void*>(message.hwnd), static_cast<unsigned>(LOWORD(message.lParam)));
+        if (message.message == WM_APP + 10) LogLineF(L"tray: hwnd=%p lparam=0x%04X", reinterpret_cast<void*>(message.hwnd), static_cast<unsigned>(LOWORD(message.lParam)));
         if (message.message == WM_APP + 10 && LOWORD(message.lParam) == WM_RBUTTONUP)
         {
             HMENU menu = CreatePopupMenu();
@@ -669,6 +693,7 @@ int App::RunWatch(bool showTray)
     if (machineWatcher.joinable()) machineWatcher.join();
 
     if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);
+    LogLineF(L"tray: removed");
     return 0;
 }
 
