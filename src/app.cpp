@@ -102,6 +102,7 @@ void App::MergeRecords()
 
 void App::HandleToggle(int itemIndex, bool hidden)
 {
+    StateLock stateGuard;  // serialise with the other process
     if (itemIndex < 0 || itemIndex >= static_cast<int>(model_.items.size())) return;
     ShortcutItem& item = model_.items[itemIndex];
 
@@ -178,6 +179,7 @@ void App::HandleToggle(int itemIndex, bool hidden)
 
 void App::HandleRestoreAll()
 {
+    StateLock stateGuard;  // serialise with the other process
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
@@ -202,6 +204,7 @@ void App::HandleRestoreAll()
 
 void App::HandleHideGroup(bool hide)
 {
+    StateLock stateGuard;  // serialise with the other process
     int changed = 0;
     std::vector<std::wstring> touched;
     // Act on what the list is showing: the header count is the filtered count,
@@ -301,6 +304,7 @@ void App::HandleOpenLocation(int itemIndex)
 
 void App::HandleUndo()
 {
+    StateLock stateGuard;  // serialise with the other process
     if (!last_.valid) return;
     const LastAction action = last_;
     last_.valid = false;
@@ -461,6 +465,7 @@ int App::RunGui(int showCommand)
 
 int App::RunSilentApply()
 {
+    StateLock stateGuard;  // serialise with the other process
     int changed = ApplyDesired(true);
     LogLineF(L"Silent apply finished, %d shortcut(s) re-hidden", changed);
     return 0;
@@ -468,6 +473,7 @@ int App::RunSilentApply()
 
 int App::RunRestoreAll()
 {
+    StateLock stateGuard;  // serialise with the other process
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
     for (auto& record : store_.Records())
@@ -593,7 +599,10 @@ int App::RunWatch(bool showTray)
     // Read the mode once, before the worker threads start touching the store.
     const bool initialTray = showTray && store_.Settings().autostart == AutostartMode::Watch;
 
-    ApplyDesired(true);
+    {
+        StateLock stateGuard;  // the first apply must not overlap a restore
+        ApplyDesired(true);
+    }
 
     std::stop_source stop;
     std::mutex applyMutex;
@@ -638,6 +647,7 @@ int App::RunWatch(bool showTray)
             std::this_thread::sleep_for(std::chrono::milliseconds(350));
             {
                 std::lock_guard<std::mutex> guard(applyMutex);
+                StateLock stateGuard;  // do not apply while a restore is running
                 store_.Load();
                 ApplyDesired(true);
             }

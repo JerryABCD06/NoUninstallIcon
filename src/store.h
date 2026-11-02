@@ -22,6 +22,24 @@ struct AppSettings
     AutostartMode autostart = AutostartMode::Off;
 };
 
+// Held across a load-modify-save transaction so two processes cannot interleave:
+// the window, the watcher and the command-line modes all take it, because a
+// whole-file save from one of them would otherwise overwrite the others.
+class StateLock
+{
+public:
+    StateLock();
+    ~StateLock();
+    StateLock(const StateLock&) = delete;
+    StateLock& operator=(const StateLock&) = delete;
+
+    bool held() const { return held_; }
+
+private:
+    HANDLE mutex_ = nullptr;
+    bool held_ = false;
+};
+
 class Store
 {
 public:

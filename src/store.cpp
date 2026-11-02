@@ -158,6 +158,27 @@ std::wstring StateFilePath()
     return JoinPath(GetDataDir(), kFile);
 }
 
+namespace { constexpr wchar_t kStateMutex[] = L"Local\\NoUninstallIcon.StateFile"; }
+
+StateLock::StateLock()
+{
+    mutex_ = CreateMutexW(nullptr, FALSE, kStateMutex);
+    if (!mutex_)
+    {
+        LogLineF(L"state lock: cannot create (err=%lu)", GetLastError());
+        return;
+    }
+    const DWORD wait = WaitForSingleObject(mutex_, 5000);
+    held_ = (wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED);
+    if (!held_) LogLineF(L"state lock: not acquired (%lu)", wait);
+}
+
+StateLock::~StateLock()
+{
+    if (held_) ReleaseMutex(mutex_);
+    if (mutex_) CloseHandle(mutex_);
+}
+
 bool Store::Load()
 {
     records_.clear();
@@ -200,7 +221,7 @@ bool Store::Save()
     if (readOnly_)
     {
         LogLine(L"Refusing to save over an unreadable state file");
-        return false;
+        LogLine(L"Save refused: the state file could not be read");
     }
 
     if (!EnsureDirectory(GetDataDir())) return false;
@@ -235,7 +256,11 @@ bool Store::Save()
     const std::wstring temp = path + L"." + std::to_wstring(GetCurrentProcessId()) + L".tmp";
     const std::string bytes = Narrow(output);
     HANDLE file = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
-    if (file == INVALID_HANDLE_VALUE) return false;
+    if (file == INVALID_HANDLE_VALUE)
+    {
+        LogLineF(L"Save failed: cannot create the temp file (err=%lu)", GetLastError());
+        return false;
+    }
     DWORD written = 0;
     const BOOL wrote = WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr);
     const BOOL flushed = FlushFileBuffers(file);
