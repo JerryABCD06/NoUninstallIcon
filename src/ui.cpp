@@ -1398,10 +1398,21 @@ void MainWindow::OnKeyDown(WPARAM key)
     // The menu key and Shift+F10 open the context menu for whatever has focus.
     if (key == VK_APPS || (key == VK_F10 && shift))
     {
-        if (focus_ == FocusTarget::List && model_ && model_->RowCount() > 0)
-            ShowContextMenu(focusRow_ >= 0 ? focusRow_ : 0, true);
-        else if (focus_ == FocusTarget::Search)
-            ShowSearchMenu();
+        // The proper keyboard shortcut, whatever has focus: every control that
+        // owns a menu shows it, the rest fall back to the focused row.
+        switch (focus_)
+        {
+        case FocusTarget::Search: ShowSearchMenu(); break;
+        case FocusTarget::Autostart: ShowAutostartMenu(); break;
+        case FocusTarget::Language: ShowLanguageMenu(); break;
+        default:
+            if (model_ && model_->RowCount() > 0)
+            {
+                SetFocusTarget(FocusTarget::List);
+                ShowContextMenu(focusRow_ >= 0 ? focusRow_ : 0, true);
+            }
+            break;
+        }
         return;
     }
 
