@@ -10,6 +10,13 @@
 
 namespace {
 
+// NOUI_KEYLOG=1 records every key press, to diagnose keys that never arrive.
+bool gKeyLog = []() {
+    wchar_t value[8]{};
+    return GetEnvironmentVariableW(L"NOUI_KEYLOG", value, 8) > 0 && value[0] == L'1';
+}();
+
+
 constexpr float kPad = 24.0f;
 constexpr float kToolbarTop = 80.0f;
 constexpr float kToolbarHeight = 36.0f;
@@ -171,9 +178,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wparam));
         return 0;
     case WM_KEYDOWN:
+        if (gKeyLog) LogLineF(L"key: down vk=%02X", static_cast<unsigned>(wparam));
         OnKeyDown(wparam);
         return 0;
     case WM_SYSKEYDOWN:
+        if (gKeyLog) LogLineF(L"key: sys  vk=%02X", static_cast<unsigned>(wparam));
         // F10 and the menu key can arrive as system keys when modified.
         if (wparam == VK_F10 || wparam == VK_APPS)
         {
