@@ -178,11 +178,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wparam));
         return 0;
     case WM_KEYDOWN:
-        if (gKeyLog || wparam == VK_APPS || wparam == VK_F10) LogLineF(L"key: down vk=%02X", static_cast<unsigned>(wparam));
+        LogLineF(L"key: down vk=%02X focus=%d", static_cast<unsigned>(wparam), static_cast<int>(focus_));
         OnKeyDown(wparam);
         return 0;
     case WM_SYSKEYDOWN:
-        if (gKeyLog || wparam == VK_APPS || wparam == VK_F10) LogLineF(L"key: sys  vk=%02X", static_cast<unsigned>(wparam));
+        LogLineF(L"key: sys  vk=%02X focus=%d", static_cast<unsigned>(wparam), static_cast<int>(focus_));
         // F10 and the menu key can arrive as system keys when modified.
         if (wparam == VK_F10 || wparam == VK_APPS)
         {
@@ -192,6 +192,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         break;
     case WM_CHAR:
         OnChar(static_cast<wchar_t>(wparam));
+        return 0;
+    case WM_CONTEXTMENU:
+        // DefWindowProc turns a menu key it does not recognise into this, which
+        // is how the touch keyboard delivers it.
+        ShowContextForFocus();
         return 0;
     case WM_TIMER:
         OnTimer(wparam);
@@ -1407,24 +1412,9 @@ void MainWindow::OnKeyDown(WPARAM key)
     // The menu key and Shift+F10 open the context menu for whatever has focus.
     if (key == VK_APPS || (key == VK_F10 && shift))
     {
-        // The proper keyboard shortcut, whatever has focus: every control that
-        // owns a menu shows it, the rest fall back to the focused row.
-        switch (focus_)
-        {
-        case FocusTarget::Search: ShowSearchMenu(); break;
-        case FocusTarget::Autostart: ShowAutostartMenu(); break;
-        case FocusTarget::Language: ShowLanguageMenu(); break;
-        default:
-            if (model_ && model_->RowCount() > 0)
-            {
-                SetFocusTarget(FocusTarget::List);
-                ShowContextMenu(focusRow_ >= 0 ? focusRow_ : 0, true);
-            }
-            break;
-        }
+        ShowContextForFocus();
         return;
     }
-
     switch (focus_)
     {
     case FocusTarget::Search:
@@ -2279,6 +2269,23 @@ void MainWindow::OnRightClick(int x, int y)
     }
     Invalidate();
     ShowSearchMenu();
+}
+
+void MainWindow::ShowContextForFocus()
+{
+    switch (focus_)
+    {
+    case FocusTarget::Search: ShowSearchMenu(); break;
+    case FocusTarget::Autostart: ShowAutostartMenu(); break;
+    case FocusTarget::Language: ShowLanguageMenu(); break;
+    default:
+        if (model_ && model_->RowCount() > 0)
+        {
+            SetFocusTarget(FocusTarget::List);
+            ShowContextMenu(focusRow_ >= 0 ? focusRow_ : 0, true);
+        }
+        break;
+    }
 }
 
 void MainWindow::ShowContextMenu(int rowIndex, bool fromKeyboard)

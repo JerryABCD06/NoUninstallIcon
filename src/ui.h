@@ -169,6 +169,7 @@ private:
     void ShowLanguageMenu();
     void ShowAutostartMenu();
     void ShowContextMenu(int rowIndex, bool fromKeyboard = false);
+    void ShowContextForFocus();
     void ClampScroll();
     void ReportError(const std::wstring& text);
 
