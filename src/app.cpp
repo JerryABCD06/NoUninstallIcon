@@ -620,6 +620,23 @@ int App::RunWatch(bool showTray)
     {
         tray::Callbacks callbacks;
         callbacks.openWindow = []() {
+            // Bring the existing window forward instead of starting a second one.
+            const HWND existing = FindWindowW(L"NoUninstallIcon.MainWindow", nullptr);
+            if (existing)
+            {
+                if (IsIconic(existing)) ShowWindow(existing, SW_RESTORE);
+                // A background process is usually not allowed to steal the
+                // foreground, so attach to the window thread for the call.
+                const DWORD targetThread = GetWindowThreadProcessId(existing, nullptr);
+                const DWORD thisThread = GetCurrentThreadId();
+                if (targetThread && targetThread != thisThread)
+                    AttachThreadInput(thisThread, targetThread, TRUE);
+                SetForegroundWindow(existing);
+                BringWindowToTop(existing);
+                if (targetThread && targetThread != thisThread)
+                    AttachThreadInput(thisThread, targetThread, FALSE);
+                return;
+            }
             ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         };
         callbacks.quit = []() { PostQuitMessage(0); };
