@@ -1,0 +1,104 @@
+# Deutsch
+lang.native_name=Deutsch
+lang.code=de
+
+app.title=Keine Deinstallations-Symbole
+app.subtitle=Verknüpfungen aus dem Startmenü ausblenden
+
+search.placeholder=Name oder Pfad suchen
+search.clear=Leeren
+
+group.uninstall=Deinstallations-Einträge
+group.other=Andere Verknüpfungen
+group.items={0} Einträge
+
+toggle.autostart=Bei Anmeldung automatisch ausblenden
+autostart.mode=Modus
+autostart.off=Aus
+autostart.once=Einmal bei der Anmeldung
+autostart.watch=Dauerhaft überwachen
+autostart.hint.once=Wendet die Liste einmal pro Anmeldung an und beendet sich.
+autostart.hint.watch=Bleibt im Hintergrund und wendet die Liste sofort erneut an.
+
+status.summary={0} Verknüpfungen · {1} hiermit ausgeblendet · {2} anderweitig ausgeblendet
+status.loading=Startmenü wird durchsucht…
+status.empty=Keine Verknüpfungen gefunden.
+
+badge.user=Benutzer
+badge.machine=Alle Benutzer
+badge.external=Anderweitig ausgeblendet
+
+action.rescan=Neu suchen
+action.hide_group=Alle ausblenden
+action.unhide_group=Ausblenden aufheben
+action.restore_all=Alles einblenden
+action.open_location=Dateispeicherort öffnen
+action.copy_path=Pfad kopieren
+
+toast.hidden={0} ausgeblendet
+toast.unhidden={0} eingeblendet
+toast.failed={0} konnten nicht geändert werden
+toast.undo=Rückgängig
+
+empty.search=Keine Treffer für „{0}“
+hint.keys=Leertaste schaltet um · Eingabetaste öffnet den Speicherort
+
+error.elevation=Zum Ändern systemweiter Verknüpfungen sind Administratorrechte nötig.
+error.store=Die Zustandsdatei konnte nicht geschrieben werden.
+error.task=Die Anmeldeaufgabe konnte nicht erstellt werden.
+error.task_removed=Die Anmeldeaufgabe wurde entfernt.
+
+confirm.restore_all=Alle von diesem Werkzeug ausgeblendeten Verknüpfungen einblenden?
+confirm.hide_group=Alle {0} Verknüpfungen dieser Gruppe ausblenden?
+
+tray.show=Öffnen
+tray.quit=Beenden
+
+about.button=Info
+about.title=Info
+about.free=Dies ist freie Software.
+about.license=Veröffentlicht unter der MIT-Lizenz.
+about.author=Autor: 
+about.ok=OK
+about.author_name=Wang Yunzheng
+
+edit.cut=Ausschneiden
+edit.copy=Kopieren
+edit.paste=Einfügen
+edit.select_all=Alles auswählen
+edit.clear=Leeren
+
+a11y.app=Keine Deinstallations-Symbole
+a11y.search=Verknüpfungen suchen
+a11y.rescan=Neu suchen
+a11y.restoreAll=Alle von diesem Werkzeug ausgeblendeten Verknüpfungen einblenden
+a11y.hideGroup=Alle Deinstallations-Einträge der Liste ausblenden
+a11y.autostart=Bei Anmeldung automatisch ausblenden
+a11y.language=Sprache
+a11y.about=Info
+a11y.list=Startmenü-Verknüpfungen
+a11y.item.hidden=Ausgeblendet
+a11y.item.visible=Nicht ausgeblendet
+a11y.item.external=Anderweitig ausgeblendet
+a11y.group.uninstall=Deinstallations-Einträge
+a11y.group.other=Andere Verknüpfungen
+a11y.state.hidden=ausgeblendet
+a11y.state.visible=nicht ausgeblendet
+a11y.state.external=anderweitig ausgeblendet
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} ausgeblendet. Die Verknüpfung erscheint nicht mehr im Startmenü.
+a11y.announce.shown={0} eingeblendet. Die Verknüpfung erscheint wieder im Startmenü.
+a11y.announce.stillHidden=Dieses Werkzeug blendet {0} nicht mehr aus, anderweitig bleibt sie verborgen.
+a11y.aboutDialog=Info
+a11y.aboutBody=Dies ist freie Software. Veröffentlicht unter der MIT-Lizenz. Autor: Wang Yunzheng.
+a11y.aboutLink=Autorenprofil öffnen: github.com/JerryABCD06
+a11y.emptySearch=Keine Verknüpfung passt zu „{0}“
+a11y.emptyList=Keine Verknüpfungen gefunden
+
+menu.hide=Ausblenden
+menu.show=Einblenden
+menu.open_shortcut=Speicherort der Verknüpfung öffnen
+menu.open_target=Speicherort des Ziels öffnen
+
+autostart.portable_note=Portabler Modus: legt eine Anmeldeaufgabe außerhalb dieses Ordners an

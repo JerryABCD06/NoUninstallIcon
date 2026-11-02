@@ -125,6 +125,10 @@ std::wstring SystemLanguageCode()
             return L"zh-Hant";
         return L"zh-Hans";
     }
+    size_t dash = lower.find(L'-');
+    const std::wstring primary = dash == std::wstring::npos ? lower : lower.substr(0, dash);
+    for (const auto& code : gDefinitionCodes)
+        if (EqualsI(code, primary)) return code;
     if (StartsWithI(lower, L"ja")) return L"ja";
     return L"en";
 }
