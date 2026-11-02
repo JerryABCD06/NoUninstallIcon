@@ -638,6 +638,7 @@ int App::RunWatch(bool showTray)
         {
             HMENU menu = CreatePopupMenu();
             AppendMenuW(menu, MF_STRING, 2001, i18n::T(L"tray.show"));
+            SetMenuDefaultItem(menu, 2001, FALSE);  // bold, the usual default
             AppendMenuW(menu, MF_STRING, 2002, i18n::T(L"tray.quit"));
             POINT point{};
             GetCursorPos(&point);

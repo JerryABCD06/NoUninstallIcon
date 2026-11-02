@@ -64,3 +64,6 @@ endlocal
 
 rem Language files must stay in sync with en.lang
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\check-lang.ps1"
+
+rem Sign with the local certificate when one is installed
+powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\sign.ps1" -Path "%~dp0build\NoUninstallIcon.exe"

@@ -1,4 +1,5 @@
 // Resource script. Language tables are embedded as RCDATA so the executable
+#pragma code_page(65001)
 // stays a single self-contained file.
 #include <winver.h>
 
@@ -40,14 +41,14 @@ BEGIN
   BEGIN
     BLOCK "040904B0"
     BEGIN
-      VALUE "CompanyName",      "NoUninstallIcon"
-      VALUE "FileDescription",  "Hides selected shortcuts from the Start menu"
+      VALUE "CompanyName",      "王云正"
+      VALUE "FileDescription",  "我不需要卸载图标"
       VALUE "FileVersion",      "1.0.0.0"
       VALUE "InternalName",     "NoUninstallIcon"
       VALUE "OriginalFilename", "NoUninstallIcon.exe"
-      VALUE "ProductName",      "NoUninstallIcon"
+      VALUE "ProductName",      "我不需要卸载图标"
       VALUE "ProductVersion",   "1.0.0.0"
-      VALUE "LegalCopyright",   ""
+      VALUE "LegalCopyright",   "MIT License, 王云正"
     END
   END
   BLOCK "VarFileInfo"
