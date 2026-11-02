@@ -1,0 +1,63 @@
+# 简体中文
+lang.native_name=简体中文
+lang.code=zh-Hans
+
+app.title=我不需要卸载图标
+app.subtitle=隐藏开始菜单中的快捷方式
+
+search.placeholder=搜索名称或路径
+search.clear=清除
+
+group.uninstall=卸载类
+group.other=其他快捷方式
+group.items={0} 项
+
+toggle.autostart=每次登录自动隐藏
+autostart.mode=方式
+autostart.off=关闭
+autostart.once=登录时执行一次
+autostart.watch=持续监视
+autostart.hint.once=每次登录生效一次，完成后退出。
+autostart.hint.watch=常驻后台，快捷方式一旦出现立刻隐藏。
+
+status.summary=共 {0} 个快捷方式  ·  本工具隐藏 {1} 个  ·  其他方式隐藏 {2} 个
+status.loading=正在扫描开始菜单…
+status.empty=没有找到任何快捷方式。
+
+badge.user=用户
+badge.machine=全局
+badge.external=已被其他方式隐藏
+
+action.rescan=重新扫描
+action.hide_group=全部隐藏
+action.unhide_group=全部取消
+action.restore_all=全部恢复
+action.open_location=打开文件位置
+action.copy_path=复制路径
+
+toast.hidden=已隐藏 {0} 项
+toast.unhidden=已恢复 {0} 项
+toast.failed=有 {0} 项无法修改
+toast.undo=撤销
+
+empty.search=没有匹配「{0}」的项
+hint.keys=空格键切换勾选 · 回车打开文件位置
+
+error.elevation=修改全局快捷方式需要管理员权限。
+error.store=状态文件写入失败。
+error.task=登录任务创建失败。
+error.task_removed=登录任务已移除。
+
+confirm.restore_all=要取消本工具隐藏的全部快捷方式吗？
+confirm.hide_group=要隐藏这一组共 {0} 项吗？
+
+tray.show=打开界面
+tray.quit=退出
+
+about.button=关于
+about.title=关于
+about.free=这是自由软件。
+about.license=MIT 协议。
+about.author=作者：
+about.ok=确定
+about.author_name=王云正

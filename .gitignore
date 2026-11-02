@@ -1,0 +1,25 @@
+# Build output
+build/
+dist/
+
+# Visual Studio
+.vs/
+*.user
+*.aps
+*.suo
+*.ncb
+
+# Objects and binaries
+*.obj
+*.pdb
+*.ilk
+*.res
+*.exp
+*.lib
+*.exe
+*.dll
+*.zip
+
+# Temporary
+*.tmp
+*.log

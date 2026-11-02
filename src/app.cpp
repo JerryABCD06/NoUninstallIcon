@@ -1,0 +1,634 @@
+#include "app.h"
+
+#include "apply.h"
+#include "autostart.h"
+#include "i18n.h"
+#include "util.h"
+
+#include <chrono>
+#include <ctime>
+#include <stop_token>
+#include <thread>
+
+namespace {
+
+constexpr wchar_t kWndClass[] = L"NoUninstallIcon.Watch";
+
+long long NowSeconds()
+{
+    return static_cast<long long>(std::time(nullptr));
+}
+
+}  // namespace
+
+bool App::Initialize(HINSTANCE instance)
+{
+    instance_ = instance;
+    store_.Load();
+    i18n::Init(store_.Settings().language);
+    window_.SetModel(&model_);
+    window_.SetAutostartMode(store_.Settings().autostart);
+    return true;
+}
+
+void App::StartScan()
+{
+    if (scanning_) return;
+    scanning_ = true;
+    model_.loading = true;
+    model_.statusText.clear();
+    window_.SetLoading(true);
+
+    std::thread([this]() {
+        auto outcome = std::make_unique<ScanOutcome>();
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        ScanStartMenu(*outcome);
+        CoUninitialize();
+
+        {
+            std::lock_guard<std::mutex> guard(scanMutex_);
+            pendingScan_ = std::move(outcome);
+        }
+        if (window_.Handle()) PostMessageW(window_.Handle(), WM_APP_SCAN_DONE, 0, 0);
+    }).detach();
+}
+
+void App::FinishScan()
+{
+    std::unique_ptr<ScanOutcome> outcome;
+    {
+        std::lock_guard<std::mutex> guard(scanMutex_);
+        outcome = std::move(pendingScan_);
+    }
+    scanning_ = false;
+    if (!outcome) return;
+
+    model_.items = std::move(outcome->items);
+    model_.loading = false;
+    MergeRecords();
+    window_.ModelChanged();
+    LogLineF(L"Scan finished: %d shortcuts", static_cast<int>(model_.items.size()));
+}
+
+void App::MergeRecords()
+{
+    for (auto& item : model_.items)
+    {
+        StoredRecord* record = store_.Find(item.key);
+        if (!record)
+        {
+            item.managed = false;
+            item.desiredHidden = false;
+            continue;
+        }
+        item.managed = true;
+        item.desiredHidden = record->desiredHidden;
+        record->path = item.path;
+        record->displayName = item.displayName;
+        record->target = item.target;
+    }
+}
+
+void App::HandleToggle(int itemIndex, bool hidden)
+{
+    if (itemIndex < 0 || itemIndex >= static_cast<int>(model_.items.size())) return;
+    ShortcutItem& item = model_.items[itemIndex];
+
+    DWORD attributes = 0;
+    ReadAttributes(item.path, attributes);
+
+    if (hidden)
+    {
+        StoredRecord* record = store_.Find(item.key);
+        bool created = false;
+        if (!record)
+        {
+            record = &store_.Ensure(item.key);
+            record->path = item.path;
+            record->originalAttributes = attributes;
+            record->displayName = item.displayName;
+            record->target = item.target;
+            record->firstSeen = NowSeconds();
+            created = true;
+        }
+
+        ApplyStatus status = SetShortcutHidden(item.path, true);
+        if (status == ApplyStatus::Ok)
+        {
+            record->desiredHidden = true;
+            record->lastApplied = NowSeconds();
+            item.managed = true;
+            item.desiredHidden = true;
+            item.hiddenOnDisk = true;
+            last_ = {{item.key}, true, true};
+            NotifyShellItem(item.path);
+            store_.Save();
+            ShowToast(i18n::Tf(L"toast.hidden", {L"1"}), true);
+        }
+        else
+        {
+            if (created) store_.Erase(item.key);
+            ShowToast(i18n::Tf(L"toast.failed", {L"1"}), false);
+        }
+    }
+    else
+    {
+        StoredRecord* record = store_.Find(item.key);
+        bool originallyHidden = record && (record->originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+        ApplyStatus status = SetShortcutHidden(item.path, originallyHidden);
+        if (status == ApplyStatus::Missing || status == ApplyStatus::Ok)
+        {
+            store_.Erase(item.key);
+            item.managed = false;
+            item.desiredHidden = false;
+            item.hiddenOnDisk = originallyHidden;
+            last_ = {{item.key}, false, true};
+            NotifyShellItem(item.path);
+            store_.Save();
+            ShowToast(i18n::Tf(L"toast.unhidden", {L"1"}), true);
+        }
+        else
+        {
+            ShowToast(i18n::Tf(L"toast.failed", {L"1"}), false);
+        }
+    }
+
+    window_.ModelChanged();
+}
+
+void App::HandleRestoreAll()
+{
+    int restored = 0;
+    for (auto& record : store_.Records())
+    {
+        bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+        if (SetShortcutHidden(record.path, originallyHidden) != ApplyStatus::Failed)
+        {
+            NotifyShellItem(record.path);
+            ++restored;
+        }
+    }
+    store_.Records().clear();
+    store_.Save();
+    last_.valid = false;
+    MergeRecords();
+    window_.ModelChanged();
+    ShowToast(i18n::Tf(L"toast.unhidden", {std::to_wstring(restored)}), false);
+}
+
+void App::HandleHideGroup(bool hide)
+{
+    int changed = 0;
+    std::vector<std::wstring> touched;
+    for (auto& item : model_.items)
+    {
+        if (!item.isUninstall) continue;
+        if (hide == (item.managed && item.desiredHidden)) continue;
+        if (hide)
+        {
+            StoredRecord* record = store_.Find(item.key);
+            DWORD attributes = 0;
+            ReadAttributes(item.path, attributes);
+            if (!record)
+            {
+                record = &store_.Ensure(item.key);
+                record->path = item.path;
+                record->originalAttributes = attributes;
+                record->displayName = item.displayName;
+                record->target = item.target;
+                record->firstSeen = NowSeconds();
+            }
+            if (SetShortcutHidden(item.path, true) == ApplyStatus::Ok)
+            {
+                record->desiredHidden = true;
+                record->lastApplied = NowSeconds();
+                item.managed = true;
+                item.desiredHidden = true;
+                item.hiddenOnDisk = true;
+                NotifyShellItem(item.path);
+                touched.push_back(item.key);
+                ++changed;
+            }
+        }
+        else
+        {
+            StoredRecord* record = store_.Find(item.key);
+            bool originallyHidden = record && (record->originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+            if (SetShortcutHidden(item.path, originallyHidden) != ApplyStatus::Failed)
+            {
+                store_.Erase(item.key);
+                item.managed = false;
+                item.desiredHidden = false;
+                item.hiddenOnDisk = originallyHidden;
+                NotifyShellItem(item.path);
+                touched.push_back(item.key);
+                ++changed;
+            }
+        }
+    }
+    store_.Save();
+    if (changed > 0)
+        last_ = {touched, hide, true};
+    else
+        last_.valid = false;
+    window_.ModelChanged();
+    ShowToast(i18n::Tf(hide ? L"toast.hidden" : L"toast.unhidden", {std::to_wstring(changed)}), changed > 0);
+}
+
+void App::HandleAutostart(AutostartMode mode)
+{
+    if (mode == AutostartMode::Off)
+    {
+        RemoveAutostart();
+        store_.Settings().autostart = AutostartMode::Off;
+        store_.Save();
+        window_.SetAutostartMode(AutostartMode::Off);
+        ShowToast(i18n::T(L"error.task_removed"), false);
+        return;
+    }
+
+    if (!InstallAutostart(mode))
+    {
+        store_.Settings().autostart = AutostartMode::Off;
+        store_.Save();
+        window_.SetAutostartMode(AutostartMode::Off);
+        ShowToast(i18n::T(L"error.task"), false);
+        LogLineF(L"InstallAutostart failed: %s", AutostartLastError().c_str());
+        return;
+    }
+
+    store_.Settings().autostart = mode;
+    store_.Save();
+    window_.SetAutostartMode(mode);
+}
+
+void App::HandleOpenLocation(int itemIndex)
+{
+    if (itemIndex < 0 || itemIndex >= static_cast<int>(model_.items.size())) return;
+    std::wstring args = L"/select,\"" + model_.items[itemIndex].path + L"\"";
+    ShellExecuteW(nullptr, L"open", L"explorer.exe", args.c_str(), nullptr, SW_SHOWNORMAL);
+}
+
+void App::HandleUndo()
+{
+    if (!last_.valid) return;
+    const LastAction action = last_;
+    last_.valid = false;
+    for (const auto& key : action.keys)
+    {
+        for (int i = 0; i < static_cast<int>(model_.items.size()); ++i)
+        {
+            if (model_.items[i].key != key) continue;
+            HandleToggle(i, !action.state);
+            break;
+        }
+    }
+    last_.valid = false;
+}
+
+void App::HandleRescan()
+{
+    StartScan();
+}
+
+void App::ShowToast(const std::wstring& text, bool undoable)
+{
+    if (window_.Handle()) window_.ShowToast(text, undoable);
+}
+
+int App::ApplyDesired(bool notify)
+{
+    int changed = 0;
+    for (auto& record : store_.Records())
+    {
+        if (!record.desiredHidden) continue;
+        DWORD attributes = 0;
+        if (!ReadAttributes(record.path, attributes))
+        {
+            LogLineF(L"  missing: %s", record.path.c_str());
+            continue;
+        }
+        if ((attributes & FILE_ATTRIBUTE_HIDDEN) != 0) continue;
+        if (SetShortcutHidden(record.path, true) == ApplyStatus::Ok)
+        {
+            record.lastApplied = NowSeconds();
+            if (notify) NotifyShellItem(record.path);
+            ++changed;
+        }
+    }
+    if (changed > 0) store_.Save();
+    return changed;
+}
+
+int App::RunGui(int showCommand)
+{
+    window_.callbacks.toggleItem = [this](int index, bool hidden) { HandleToggle(index, hidden); };
+    window_.callbacks.rescan = [this]() { HandleRescan(); };
+    window_.callbacks.restoreAll = [this]() { HandleRestoreAll(); };
+    window_.callbacks.hideUninstallGroup = [this](bool hide) { HandleHideGroup(hide); };
+    window_.callbacks.autostartChanged = [this](AutostartMode mode) { HandleAutostart(mode); };
+    window_.callbacks.languageChanged = [this](const std::wstring& code) {
+        store_.Settings().language = code;
+        store_.Save();
+    };
+    window_.callbacks.undo = [this]() { HandleUndo(); };
+    window_.callbacks.openLocation = [this](int index) { HandleOpenLocation(index); };
+    window_.callbacks.scanDone = [this]() { FinishScan(); };
+
+    // If the sign-in task disappeared (Windows update, cleanup tool), recreate it
+    // while we still have the chance to run elevated.
+    if (store_.Settings().autostart != AutostartMode::Off && !IsAutostartInstalled())
+    {
+        InstallAutostart(store_.Settings().autostart);
+    }
+
+    if (!window_.Create(instance_, showCommand)) return 1;
+
+    model_.loading = true;
+    StartScan();
+
+    if (!capturePath_.empty())
+    {
+        HWND hwnd = window_.Handle();
+        SetForegroundWindow(hwnd);
+        SetWindowPos(hwnd, HWND_TOPMOST, 0, 0, 0, 0, SWP_NOMOVE | SWP_NOSIZE | SWP_NOACTIVATE);
+        DWORD start = GetTickCount();
+        while (GetTickCount() - start < 1200)
+        {
+            MSG pending{};
+            while (PeekMessageW(&pending, nullptr, 0, 0, PM_REMOVE))
+            {
+                TranslateMessage(&pending);
+                DispatchMessageW(&pending);
+            }
+            Sleep(10);
+        }
+        CaptureWindowToPng(hwnd, capturePath_);
+        PostQuitMessage(0);
+    }
+
+    MSG message{};
+    while (GetMessageW(&message, nullptr, 0, 0) > 0)
+    {
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
+    }
+    return 0;
+}
+
+int App::RunSilentApply()
+{
+    int changed = ApplyDesired(true);
+    LogLineF(L"Silent apply finished, %d shortcut(s) re-hidden", changed);
+    return 0;
+}
+
+int App::RunRestoreAll()
+{
+    int restored = 0;
+    for (auto& record : store_.Records())
+    {
+        bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+        if (SetShortcutHidden(record.path, originallyHidden) != ApplyStatus::Failed)
+        {
+            NotifyShellItem(record.path);
+            ++restored;
+        }
+    }
+    store_.Records().clear();
+    store_.Save();
+    LogLineF(L"Restore all finished, %d shortcut(s) restored", restored);
+    return 0;
+}
+
+int App::RunSelfTest()
+{
+    std::wstring report;
+    ScanBlocking();
+    report += Fmt(L"scanned=%d\r\n", static_cast<int>(model_.items.size()));
+    if (model_.items.empty())
+    {
+        report += L"FAIL: nothing scanned\r\n";
+        WriteWholeFileAtomic(JoinPath(GetDataDir(), L"selftest.txt"), Narrow(report));
+        return 1;
+    }
+
+    int index = 0;
+    for (int i = 0; i < static_cast<int>(model_.items.size()); ++i)
+    {
+        if (model_.items[i].isUninstall) { index = i; break; }
+    }
+    const std::wstring path = model_.items[index].path;
+    const std::wstring key = model_.items[index].key;
+    report += Fmt(L"target=%s\r\n", path.c_str());
+
+    DWORD before = 0;
+    ReadAttributes(path, before);
+
+    HandleToggle(index, true);
+    DWORD afterHide = 0;
+    ReadAttributes(path, afterHide);
+    report += Fmt(L"hide   : bit=%d managed=%d record=%d\r\n", (afterHide & FILE_ATTRIBUTE_HIDDEN) ? 1 : 0,
+                  model_.items[index].managed ? 1 : 0, store_.Find(key) ? 1 : 0);
+
+    HandleToggle(index, false);
+    DWORD afterShow = 0;
+    ReadAttributes(path, afterShow);
+    report += Fmt(L"unhide : bit=%d managed=%d record=%d\r\n", (afterShow & FILE_ATTRIBUTE_HIDDEN) ? 1 : 0,
+                  model_.items[index].managed ? 1 : 0, store_.Find(key) ? 1 : 0);
+
+    bool ok = (before & FILE_ATTRIBUTE_HIDDEN) == (afterShow & FILE_ATTRIBUTE_HIDDEN);
+
+    // Case 2: a shortcut that was already hidden before this tool touched it
+    // must stay hidden when the user unchecks it again.
+    int second = -1;
+    for (int i = 0; i < static_cast<int>(model_.items.size()); ++i)
+    {
+        if (i != index) { second = i; break; }
+    }
+    if (second >= 0)
+    {
+        const std::wstring path2 = model_.items[second].path;
+        SetFileAttributesW(path2.c_str(), FILE_ATTRIBUTE_HIDDEN | FILE_ATTRIBUTE_ARCHIVE);
+        HandleToggle(second, true);
+        HandleToggle(second, false);
+        DWORD afterSecond = 0;
+        ReadAttributes(path2, afterSecond);
+        bool hiddenKept = (afterSecond & FILE_ATTRIBUTE_HIDDEN) != 0;
+        report += Fmt(L"external: bit=%d managed=%d\r\n", hiddenKept ? 1 : 0,
+                      model_.items[second].managed ? 1 : 0);
+        ok = ok && hiddenKept && !model_.items[second].managed;
+        SetFileAttributesW(path2.c_str(), FILE_ATTRIBUTE_ARCHIVE);
+    }
+
+    report += ok ? L"RESULT: ok\r\n" : L"RESULT: mismatch\r\n";
+    WriteWholeFileAtomic(JoinPath(GetDataDir(), L"selftest.txt"), Narrow(report));
+    LogLine(L"Self test finished");
+    return ok ? 0 : 1;
+}
+
+int App::RunCleanup()
+{
+    RemoveAutostart();
+    return RunRestoreAll();
+}
+
+int App::RunWatch()
+{
+    ApplyDesired(true);
+
+    // Hidden window so the tray icon gets its messages.
+    WNDCLASSEXW wc{};
+    wc.cbSize = sizeof(wc);
+    wc.lpfnWndProc = DefWindowProcW;
+    wc.hInstance = instance_;
+    wc.lpszClassName = kWndClass;
+    RegisterClassExW(&wc);
+    HWND hwnd = CreateWindowExW(0, kWndClass, L"NoUninstallIcon", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
+                                instance_, nullptr);
+
+    NOTIFYICONDATAW icon{};
+    icon.cbSize = sizeof(icon);
+    icon.hWnd = hwnd;
+    icon.uID = 1;
+    icon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    icon.uCallbackMessage = WM_APP + 10;
+    icon.hIcon = static_cast<HICON>(LoadImageW(instance_, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR));
+    if (!icon.hIcon) icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
+    wcscpy_s(icon.szTip, i18n::T(L"app.title"));
+    Shell_NotifyIconW(NIM_ADD, &icon);
+
+    std::stop_source stop;
+    std::mutex applyMutex;
+
+    auto watcher = [&](const KNOWNFOLDERID& folder) {
+        PWSTR path = nullptr;
+        if (FAILED(SHGetKnownFolderPath(folder, KF_FLAG_DEFAULT, nullptr, &path)) || !path) return;
+        std::wstring root = path;
+        CoTaskMemFree(path);
+
+        HANDLE notification = FindFirstChangeNotificationW(
+            root.c_str(), TRUE,
+            FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES);
+        if (notification == INVALID_HANDLE_VALUE) return;
+
+        while (!stop.stop_requested())
+        {
+            DWORD wait = WaitForSingleObject(notification, 400);
+            if (wait == WAIT_OBJECT_0)
+            {
+                // Let the installer finish writing before re-applying.
+                std::this_thread::sleep_for(std::chrono::milliseconds(350));
+                {
+                    std::lock_guard<std::mutex> guard(applyMutex);
+                    // The GUI may have added or removed records since we started;
+                    // reload so a re-apply never writes back a stale list.
+                    store_.Load();
+                    ApplyDesired(true);
+                }
+                if (!FindNextChangeNotification(notification)) break;
+            }
+        }
+        FindCloseChangeNotification(notification);
+    };
+    std::thread userWatcher(watcher, FOLDERID_Programs);
+    std::thread machineWatcher(watcher, FOLDERID_CommonPrograms);
+
+    MSG message{};
+    while (GetMessageW(&message, nullptr, 0, 0) > 0)
+    {
+        if (message.message == WM_APP + 10 && LOWORD(message.lParam) == WM_RBUTTONUP)
+        {
+            HMENU menu = CreatePopupMenu();
+            AppendMenuW(menu, MF_STRING, 2001, i18n::T(L"tray.show"));
+            AppendMenuW(menu, MF_STRING, 2002, i18n::T(L"tray.quit"));
+            POINT point{};
+            GetCursorPos(&point);
+            SetForegroundWindow(hwnd);
+            int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd, nullptr);
+            DestroyMenu(menu);
+            if (command == 2001)
+            {
+                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+            }
+            else if (command == 2002)
+            {
+                PostQuitMessage(0);
+            }
+        }
+        else if (message.message == WM_APP + 10 && LOWORD(message.lParam) == WM_LBUTTONDBLCLK)
+        {
+            ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+        }
+        TranslateMessage(&message);
+        DispatchMessageW(&message);
+    }
+
+    stop.request_stop();
+    if (userWatcher.joinable()) userWatcher.join();
+    if (machineWatcher.joinable()) machineWatcher.join();
+
+    Shell_NotifyIconW(NIM_DELETE, &icon);
+    return 0;
+}
+
+void App::ScanBlocking()
+{
+    auto outcome = std::make_unique<ScanOutcome>();
+    ScanStartMenu(*outcome);
+    model_.items = std::move(outcome->items);
+    model_.loading = false;
+    MergeRecords();
+    window_.ModelChanged();
+}
+
+bool App::RenderScreenshot(const std::wstring& path, bool dark)
+{
+    const float width = 1040.0f;
+    const float height = 760.0f;
+    if (!window_.InitOffscreen()) return false;
+
+    ComPtr<ID2D1Factory> factory;
+    if (FAILED(D2D1CreateFactory(D2D1_FACTORY_TYPE_SINGLE_THREADED, factory.GetAddressOf()))) return false;
+
+    Theme theme = MakeTheme(dark);
+    return RenderToPng(factory.Get(), path, static_cast<UINT>(width), static_cast<UINT>(height), theme.windowBg,
+                       [&](ID2D1RenderTarget* target) { window_.RenderTo(target, width, height, dark); });
+}
+
+void App::WriteDump(const std::wstring& path)
+{
+    ScanOutcome outcome;
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+    ScanStartMenu(outcome);
+    CoUninitialize();
+
+    std::wstring text = L"NoUninstallIcon scan dump\r\n";
+    text += Fmt(L"total=%d skipped=%d\r\n", static_cast<int>(outcome.items.size()), outcome.skipped);
+    for (const auto& item : outcome.items)
+    {
+        text += (item.isUninstall ? L"[U] " : L"[ ] ");
+        text += item.displayName;
+        text += L"\t| sort=";
+        text += item.sortName;
+        text += L"\t| ";
+        text += item.target;
+        text += L"\t| hidden=";
+        text += item.hiddenOnDisk ? L"1" : L"0";
+        text += L"\r\n";
+    }
+
+    // Second section: the order actually shown in the window.
+    Model model;
+    model.items = std::move(outcome.items);
+    model.loading = false;
+    model.Recompute();
+    text += L"\r\n=== display order ===\r\n";
+    for (int row = 0; row < model.RowCount(); ++row)
+    {
+        const ShortcutItem* item = model.At(row);
+        text += Fmt(L"%3d %s %s  (sort=%s)\r\n", row, item->isUninstall ? L"U" : L"-", item->displayName.c_str(),
+                    item->sortName.c_str());
+    }
+    WriteWholeFileAtomic(path, Narrow(text));
+}

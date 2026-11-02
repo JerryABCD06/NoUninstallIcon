@@ -1,0 +1,63 @@
+# 日本語
+lang.native_name=日本語
+lang.code=ja
+
+app.title=アンインストールアイコンは不要
+app.subtitle=スタートメニューのショートカットを隠します
+
+search.placeholder=名前またはパスを検索
+search.clear=クリア
+
+group.uninstall=アンインストール項目
+group.other=その他のショートカット
+group.items={0} 件
+
+toggle.autostart=サインイン時に自動で隠す
+autostart.mode=方法
+autostart.off=オフ
+autostart.once=サインイン時に 1 回
+autostart.watch=常時監視
+autostart.hint.once=サインインごとに 1 回適用して終了します。
+autostart.hint.watch=常駐し、ショートカットが現れたら即座に隠します。
+
+status.summary=全 {0} 件  ·  このツールで非表示 {1} 件  ·  他で非表示 {2} 件
+status.loading=スタートメニューを走査しています…
+status.empty=ショートカットが見つかりません。
+
+badge.user=ユーザー
+badge.machine=全ユーザー
+badge.external=他で非表示
+
+action.rescan=再走査
+action.hide_group=すべて隠す
+action.unhide_group=すべて解除
+action.restore_all=すべて元に戻す
+action.open_location=ファイルの場所を開く
+action.copy_path=パスをコピー
+
+toast.hidden={0} 件を非表示にしました
+toast.unhidden={0} 件を元に戻しました
+toast.failed={0} 件を変更できませんでした
+toast.undo=元に戻す
+
+empty.search=「{0}」に一致する項目はありません
+hint.keys=Space で切り替え · Enter でファイルの場所を開く
+
+error.elevation=全ユーザーのショートカットを変更するには管理者権限が必要です。
+error.store=状態ファイルを書き込めませんでした。
+error.task=サインイン タスクを作成できませんでした。
+error.task_removed=サインイン タスクを削除しました。
+
+confirm.restore_all=このツールで隠したショートカットをすべて元に戻しますか？
+confirm.hide_group=このグループの {0} 件をすべて隠しますか？
+
+tray.show=開く
+tray.quit=終了
+
+about.button=このアプリについて
+about.title=このアプリについて
+about.free=自由ソフトウェアです。
+about.license=MIT ライセンスで公開しています。
+about.author=作者：
+about.ok=OK
+about.author_name=王云正

@@ -1,0 +1,41 @@
+// Resource script. Language tables are embedded as RCDATA so the executable
+// stays a single self-contained file.
+#include <winver.h>
+
+#define IDR_LANG_EN      101
+#define IDR_LANG_ZH_HANS 102
+#define IDR_LANG_ZH_HANT 103
+#define IDR_LANG_JA      104
+
+1 ICON "app.ico"
+
+IDR_LANG_EN      RCDATA "lang\\en.lang"
+IDR_LANG_ZH_HANS RCDATA "lang\\zh-Hans.lang"
+IDR_LANG_ZH_HANT RCDATA "lang\\zh-Hant.lang"
+IDR_LANG_JA      RCDATA "lang\\ja.lang"
+
+1 VERSIONINFO
+FILEVERSION     1,0,0,0
+PRODUCTVERSION  1,0,0,0
+FILEOS          VOS_NT_WINDOWS32
+FILETYPE        VFT_APP
+BEGIN
+  BLOCK "StringFileInfo"
+  BEGIN
+    BLOCK "040904B0"
+    BEGIN
+      VALUE "CompanyName",      "NoUninstallIcon"
+      VALUE "FileDescription",  "Hides selected shortcuts from the Start menu"
+      VALUE "FileVersion",      "1.0.0.0"
+      VALUE "InternalName",     "NoUninstallIcon"
+      VALUE "OriginalFilename", "NoUninstallIcon.exe"
+      VALUE "ProductName",      "NoUninstallIcon"
+      VALUE "ProductVersion",   "1.0.0.0"
+      VALUE "LegalCopyright",   ""
+    END
+  END
+  BLOCK "VarFileInfo"
+  BEGIN
+    VALUE "Translation", 0x409, 1200
+  END
+END

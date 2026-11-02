@@ -1,0 +1,63 @@
+# English (fallback language). UTF-8, key=value, '#' starts a comment.
+lang.native_name=English
+lang.code=en
+
+app.title=No Uninstall Icon
+app.subtitle=Hide shortcuts from the Start menu
+
+search.placeholder=Search name or path
+search.clear=Clear
+
+group.uninstall=Uninstall entries
+group.other=Other shortcuts
+group.items={0} items
+
+toggle.autostart=Hide automatically on sign-in
+autostart.mode=Mode
+autostart.off=Off
+autostart.once=Once at sign-in
+autostart.watch=Keep watching
+autostart.hint.once=Applies the list once per sign-in, then exits.
+autostart.hint.watch=Stays in the background and re-applies instantly.
+
+status.summary={0} shortcuts  \u00B7  {1} hidden by this tool  \u00B7  {2} hidden elsewhere
+status.loading=Scanning the Start menu...
+status.empty=No shortcuts were found.
+
+badge.user=User
+badge.machine=All users
+badge.external=Hidden elsewhere
+
+action.rescan=Rescan
+action.hide_group=Hide all
+action.unhide_group=Unhide all
+action.restore_all=Unhide everything
+action.open_location=Open file location
+action.copy_path=Copy path
+
+toast.hidden=Hidden {0}
+toast.unhidden=Restored {0}
+toast.failed={0} could not be changed
+toast.undo=Undo
+
+empty.search=Nothing matches "{0}"
+hint.keys=Space toggles \u00B7 Enter opens the file location
+
+error.elevation=Administrator rights are required to change system-wide shortcuts.
+error.store=The state file could not be written.
+error.task=The sign-in task could not be created.
+error.task_removed=The sign-in task was removed.
+
+confirm.restore_all=Unhide every shortcut managed by this tool?
+confirm.hide_group=Hide all {0} shortcuts in this group?
+
+tray.show=Open
+tray.quit=Quit
+
+about.button=About
+about.title=About
+about.free=This is free software.
+about.license=Released under the MIT License.
+about.author=Author: 
+about.ok=OK
+about.author_name=王云正
