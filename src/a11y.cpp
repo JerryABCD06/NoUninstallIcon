@@ -27,8 +27,7 @@ bool Find(Element id, SnapshotElement& out)
 
 class Provider final : public IRawElementProviderSimple,
                        public IRawElementProviderFragment,
-                       public IRawElementProviderFragmentRoot,
-                       public IValueProvider
+                       public IRawElementProviderFragmentRoot
 {
 public:
     explicit Provider(Element id) : id_(id) {}
@@ -44,8 +43,6 @@ public:
             *object = static_cast<IRawElementProviderSimple*>(this);
         else if (riid == __uuidof(IRawElementProviderFragment))
             *object = static_cast<IRawElementProviderFragment*>(this);
-        else if (riid == __uuidof(IValueProvider))
-            *object = static_cast<IValueProvider*>(this);
         else if (riid == __uuidof(IRawElementProviderFragmentRoot))
         {
             if (id_ != Element::Root) return E_NOINTERFACE;
@@ -75,33 +72,9 @@ public:
         return S_OK;
     }
 
-    HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID patternId, IUnknown** retVal) override
+    HRESULT STDMETHODCALLTYPE GetPatternProvider(PATTERNID, IUnknown** retVal) override
     {
-        if (!retVal) return E_INVALIDARG;
-        *retVal = nullptr;
-        if (patternId == UIA_ValuePatternId && id_ == Element::Search)
-        {
-            *retVal = static_cast<IValueProvider*>(this);
-            AddRef();
-        }
-        return S_OK;
-    }
-
-    // IValueProvider: what the field currently holds.
-    HRESULT STDMETHODCALLTYPE get_Value(BSTR* retVal) override
-    {
-        if (!retVal) return E_INVALIDARG;
-        SnapshotElement element;
-        *retVal = SysAllocString(Find(id_, element) ? element.value.c_str() : L"");
-        return S_OK;
-    }
-
-    HRESULT STDMETHODCALLTYPE SetValue(LPCWSTR) override { return UIA_E_NOTSUPPORTED; }
-
-    HRESULT STDMETHODCALLTYPE get_IsReadOnly(BOOL* retVal) override
-    {
-        if (!retVal) return E_INVALIDARG;
-        *retVal = VARIANT_FALSE;
+        if (retVal) *retVal = nullptr;
         return S_OK;
     }
 
@@ -458,25 +431,6 @@ void Notify(const std::wstring& text)
         UiaRaiseNotificationEvent(provider, NotificationKind_ActionCompleted,
                                   NotificationProcessing_ImportantMostRecent, message, nullptr);
         SysFreeString(message);
-    }
-    provider->Release();
-}
-
-void NotifyValueChanged(const std::wstring& value)
-{
-    Provider* provider = new (std::nothrow) Provider(Element::Search);
-    if (!provider) return;
-
-    VARIANT oldValue;
-    VariantInit(&oldValue);
-    VARIANT newValue;
-    VariantInit(&newValue);
-    newValue.vt = VT_BSTR;
-    newValue.bstrVal = SysAllocString(value.c_str());
-    if (newValue.bstrVal)
-    {
-        UiaRaiseAutomationPropertyChangedEvent(provider, UIA_ValueValuePropertyId, oldValue, newValue);
-        VariantClear(&newValue);
     }
     provider->Release();
 }

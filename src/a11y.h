@@ -51,7 +51,6 @@ void Publish(const std::vector<SnapshotElement>& elements);
 // Raises UIA_AutomationFocusChangedEventId for the element.
 void NotifyFocus(Element element);
 void Notify(const std::wstring& text);
-void NotifyValueChanged(const std::wstring& value);
 
 LRESULT HandleGetObject(HWND hwnd, WPARAM wparam, LPARAM lparam);
 
