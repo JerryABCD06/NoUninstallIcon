@@ -1,0 +1,108 @@
+lang.native_name=Français
+lang.code=fr
+lang.system=Système
+
+app.title=Pas besoin d'icône de désinstallation
+app.subtitle=Masquer les raccourcis du menu Démarrer
+
+search.placeholder=Rechercher un nom ou un chemin
+search.clear=Effacer
+
+group.uninstall=Entrées de désinstallation
+group.other=Autres raccourcis
+group.items={0} éléments
+
+toggle.autostart=Masquer automatiquement à l'ouverture de session
+autostart.mode=Mode
+autostart.off=Désactivé
+autostart.once=Une fois à l'ouverture de session
+autostart.watch=Surveiller en continu
+autostart.hint.once=Applique la liste une fois par session, puis quitte.
+autostart.hint.watch=Reste en arrière-plan et réapplique aussitôt.
+
+status.summary={0} raccourcis · {1} masqués par cet outil · {2} masqués autrement
+status.loading=Analyse du menu Démarrer…
+status.empty=Aucun raccourci trouvé.
+
+badge.user=Utilisateur
+badge.machine=Tous les utilisateurs
+badge.external=Masqué autrement
+
+action.rescan=Analyser à nouveau
+action.hide_group=Tout masquer
+action.unhide_group=Tout démasquer le groupe
+action.restore_all=Rétablir tout
+action.open_location=Ouvrir l'emplacement du fichier
+action.copy_path=Copier le chemin
+
+toast.hidden={0} masqués
+toast.unhidden={0} réaffichés
+toast.failed={0} n'ont pas pu être modifiés
+toast.undo=Annuler
+
+toast.hiddenItem=« {0} » n'apparaîtra plus dans le menu Démarrer.
+toast.shownItem=« {0} » réapparaît dans le menu Démarrer.
+toast.stillHiddenItem=Cet outil ne masque plus « {0} », mais autre chose le fait encore.
+
+empty.search=Aucun résultat pour « {0} »
+hint.keys=Espace bascule · Entrée ouvre l'emplacement du fichier
+
+error.elevation=Modifier les raccourcis de tous les utilisateurs exige des droits d'administrateur.
+error.store=Le fichier d'état n'a pas pu être écrit.
+error.task=La tâche d'ouverture de session n'a pas pu être créée.
+error.task_removed=La tâche d'ouverture de session a été supprimée.
+
+confirm.restore_all=Réafficher tous les raccourcis masqués par cet outil ?
+confirm.hide_group=Masquer les {0} raccourcis de ce groupe ?
+
+tray.show=Ouvrir
+tray.quit=Quitter
+
+about.button=À propos
+about.title=À propos
+about.free=Ceci est un logiciel libre.
+about.license=Publié sous licence MIT.
+about.author=Auteur : 
+about.ok=OK
+about.author_name=Wang Yunzheng
+
+edit.cut=Couper
+edit.copy=Copier
+edit.paste=Coller
+edit.select_all=Tout sélectionner
+edit.clear=Effacer
+
+a11y.app=Pas besoin d'icône de désinstallation
+a11y.search=Rechercher des raccourcis
+a11y.rescan=Analyser à nouveau
+a11y.restoreAll=Réafficher tous les raccourcis masqués par cet outil
+a11y.hideGroup=Masquer toutes les entrées de désinstallation de la liste
+a11y.autostart=Masquer automatiquement à l'ouverture de session
+a11y.language=Langue
+a11y.about=À propos
+a11y.list=Raccourcis du menu Démarrer
+a11y.item.hidden=Masqué
+a11y.item.visible=Non masqué
+a11y.item.external=Masqué autrement
+a11y.group.uninstall=Entrées de désinstallation
+a11y.group.other=Autres raccourcis
+a11y.state.hidden=masqué
+a11y.state.visible=non masqué
+a11y.state.external=masqué autrement
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} masqué. Il n'apparaît plus dans le menu Démarrer.
+a11y.announce.shown={0} réaffiché. Il réapparaît dans le menu Démarrer.
+a11y.announce.stillHidden=Cet outil ne masque plus {0}, mais il reste masqué autrement.
+a11y.aboutDialog=À propos
+a11y.aboutBody=Ceci est un logiciel libre. Publié sous licence MIT. Auteur : Wang Yunzheng.
+a11y.aboutLink=Ouvrir le profil de l'auteur : github.com/JerryABCD06
+a11y.emptySearch=Aucun raccourci ne correspond à « {0} »
+a11y.emptyList=Aucun raccourci trouvé
+
+menu.hide=Masquer
+menu.show=Afficher
+menu.open_shortcut=Ouvrir l'emplacement du raccourci
+menu.open_target=Ouvrir l'emplacement de la cible
+
+autostart.portable_note=Mode portable : crée une tâche d'ouverture de session hors de ce dossier
