@@ -578,7 +578,12 @@ int App::RunWatch(bool showTray)
     icon.cbSize = sizeof(icon);
     icon.hWnd = hwnd;
     icon.uID = 1;
-    icon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP;
+    // A fixed identity for the icon. Without one the shell keys it by window
+    // handle, and a stale registration from an earlier process can keep
+    // absorbing the clicks meant for this one.
+    static const GUID kTrayGuid = {0x6f1c2b84, 0x9a3e, 0x4d21, {0x8c, 0x7a, 0x51, 0x2e, 0x4b, 0x9d, 0x33, 0x10}};
+    icon.guidItem = kTrayGuid;
+    icon.uFlags = NIF_ICON | NIF_MESSAGE | NIF_TIP | NIF_GUID;
     icon.uCallbackMessage = WM_APP + 10;
     icon.hIcon = static_cast<HICON>(LoadImageW(instance_, MAKEINTRESOURCEW(1), IMAGE_ICON, 16, 16, LR_DEFAULTCOLOR));
     if (!icon.hIcon) icon.hIcon = LoadIconW(nullptr, IDI_APPLICATION);
@@ -589,6 +594,7 @@ int App::RunWatch(bool showTray)
     const UINT taskbarCreated = RegisterWindowMessageW(L"TaskbarCreated");
     auto addIcon = [&]() {
         if (!showTray) return TRUE;
+        Shell_NotifyIconW(NIM_DELETE, &icon);  // drop a stale registration with this GUID
         for (int attempt = 0; attempt < 10; ++attempt)
         {
             if (Shell_NotifyIconW(NIM_ADD, &icon)) return TRUE;
@@ -717,7 +723,7 @@ int App::RunWatch(bool showTray)
     if (userWatcher.joinable()) userWatcher.join();
     if (machineWatcher.joinable()) machineWatcher.join();
 
-    if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);
+    if (showTray) Shell_NotifyIconW(NIM_DELETE, &icon);  // same GUID, so this removes ours only
     LogLineF(L"tray: removed");
     return 0;
 }
