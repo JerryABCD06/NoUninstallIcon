@@ -183,7 +183,7 @@ void App::HandleRestoreAll()
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
-        if (SetShortcutHidden(record.path, originallyHidden) != ApplyStatus::Failed)
+        if (SetShortcutHidden(record.path, originallyHidden) == ApplyStatus::Ok)
         {
             NotifyShellItem(record.path);
             restoredKeys.push_back(record.key);
@@ -473,7 +473,7 @@ int App::RunRestoreAll()
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
-        if (SetShortcutHidden(record.path, originallyHidden) != ApplyStatus::Failed)
+        if (SetShortcutHidden(record.path, originallyHidden) == ApplyStatus::Ok)
         {
             NotifyShellItem(record.path);
             restoredKeys.push_back(record.key);
@@ -556,6 +556,17 @@ int App::RunSelfTest()
 
 int App::RunCleanup()
 {
+    // Uninstalling must leave nothing running: tell the watcher the mode is off
+    // and wait for it to go, so it cannot re-hide shortcuts during the restore.
+    session::Publish(static_cast<int>(AutostartMode::Off));
+    for (int tick = 0; tick < 40; ++tick)
+    {
+        HANDLE slot = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background");
+        if (!slot) break;
+        CloseHandle(slot);
+        Sleep(100);
+    }
+
     RemoveAutostart();
     return RunRestoreAll();
 }
@@ -575,27 +586,39 @@ int App::RunWatch(bool showTray)
     std::stop_source stop;
     std::mutex applyMutex;
 
-    auto watcher = [&](const KNOWNFOLDERID& folder)
-    {
+    // Resolved here, on a thread with COM initialised: the worker threads have
+    // none, and SHGetKnownFolderPath fails there, which would silently leave the
+    // watcher doing nothing at all.
+    auto resolveRoot = [](const KNOWNFOLDERID& folder) -> std::wstring {
         wchar_t overridePath[MAX_PATH]{};
-        std::wstring root;
-        if (GetEnvironmentVariableW(L"NOUI_SCAN_ROOT", overridePath, MAX_PATH) > 0)
+        if (GetEnvironmentVariableW(L"NOUI_SCAN_ROOT", overridePath, MAX_PATH) > 0) return overridePath;
+        PWSTR path = nullptr;
+        if (FAILED(SHGetKnownFolderPath(folder, KF_FLAG_DEFAULT, nullptr, &path)) || !path) return std::wstring();
+        std::wstring root = path;
+        CoTaskMemFree(path);
+        return root;
+    };
+
+    const std::wstring userRoot = resolveRoot(FOLDERID_Programs);
+    const std::wstring machineRoot = resolveRoot(FOLDERID_CommonPrograms);
+
+    auto watcher = [&](std::wstring root)
+    {
+        if (root.empty())
         {
-            root = overridePath;
-        }
-        else
-        {
-            PWSTR path = nullptr;
-            if (FAILED(SHGetKnownFolderPath(folder, KF_FLAG_DEFAULT, nullptr, &path)) || !path) return;
-            root = path;
-            CoTaskMemFree(path);
+            LogLine(L"watcher: no folder to watch");
+            return;
         }
 
         HANDLE notification = FindFirstChangeNotificationW(
             root.c_str(), TRUE,
             FILE_NOTIFY_CHANGE_FILE_NAME | FILE_NOTIFY_CHANGE_DIR_NAME | FILE_NOTIFY_CHANGE_ATTRIBUTES |
                 FILE_NOTIFY_CHANGE_SIZE | FILE_NOTIFY_CHANGE_LAST_WRITE);
-        if (notification == INVALID_HANDLE_VALUE) return;
+        if (notification == INVALID_HANDLE_VALUE)
+        {
+            LogLineF(L"watcher: cannot watch %s err=%lu", root.c_str(), GetLastError());
+            return;
+        }
 
         while (!stop.stop_requested())
         {
@@ -611,8 +634,9 @@ int App::RunWatch(bool showTray)
         FindCloseChangeNotification(notification);
     };
 
-    std::thread userWatcher(watcher, FOLDERID_Programs);
-    std::thread machineWatcher(watcher, FOLDERID_CommonPrograms);
+
+    std::thread userWatcher(watcher, userRoot);
+    std::thread machineWatcher(watcher, machineRoot);
 
 
     // The tray window is always created; whether an icon is shown follows the
@@ -651,7 +675,7 @@ int App::RunWatch(bool showTray)
             }
             PostQuitMessage(0);
         };
-        if (tray::Start(instance_, i18n::T(L"app.title"), callbacks))
+        if (tray::Start(instance_, i18n::T(L"app.title"), showTray && store_.Settings().autostart == AutostartMode::Watch, callbacks))
             tray::SetVisible(showTray && store_.Settings().autostart == AutostartMode::Watch);
     }
 

@@ -87,6 +87,7 @@ DWORD ToHex(const std::wstring& text)
 bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records, AppSettings& settings)
 {
     std::string raw;
+    bool sawSetting = false;
     if (!ReadWholeFile(file, raw)) return false;
 
     std::wstring content = Widen(raw);
@@ -117,6 +118,7 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
 
         if (fields[0] == L"S" && fields.size() >= 3)
         {
+            sawSetting = true;
             if (fields[1] == L"language") parsedSettings.language = Unescape(fields[2]);
             else if (fields[1] == L"autostart")
             {
@@ -143,6 +145,7 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
 
     records = std::move(parsed);
     settings = parsedSettings;
+    if (!sawSetting) return false;  // header alone means the write was cut short
     return true;
 }
 
@@ -165,6 +168,7 @@ bool Store::Load()
         if (ParseStateFile(path + L".bak", records_, settings_))
         {
             LogLineF(L"Recovered %d record(s) from the backup", static_cast<int>(records_.size()));
+            loadedFromBackup_ = true;
             return true;
         }
         return true;  // first run
@@ -194,6 +198,7 @@ bool Store::Save()
         return false;
     }
 
+    if (!EnsureDirectory(GetDataDir())) return false;
 
     std::wstring output;
     output += kHeader;
@@ -218,9 +223,36 @@ bool Store::Save()
     }
 
     std::wstring path = StateFilePath();
-    if (PathFileExistsW(path.c_str())) CopyFileW(path.c_str(), (path + L".bak").c_str(), FALSE);
 
-    return WriteWholeFileAtomic(path, Narrow(output));
+    // Write the new content to a private temp file and flush it before touching
+    // the old copy: the backup must never be replaced by data we have not
+    // managed to store yet, or a failed write leaves nothing behind.
+    const std::wstring temp = path + L"." + std::to_wstring(GetCurrentProcessId()) + L".tmp";
+    const std::string bytes = Narrow(output);
+    HANDLE file = CreateFileW(temp.c_str(), GENERIC_WRITE, 0, nullptr, CREATE_ALWAYS, FILE_ATTRIBUTE_NORMAL, nullptr);
+    if (file == INVALID_HANDLE_VALUE) return false;
+    DWORD written = 0;
+    const BOOL wrote = WriteFile(file, bytes.data(), static_cast<DWORD>(bytes.size()), &written, nullptr);
+    FlushFileBuffers(file);
+    CloseHandle(file);
+    if (!wrote || written != bytes.size())
+    {
+        DeleteFileW(temp.c_str());
+        return false;
+    }
+
+    // Only demote a primary we actually loaded: if the good data came from the
+    // backup, copying the damaged primary over it would destroy the last copy.
+    if (!loadedFromBackup_ && PathFileExistsW(path.c_str()))
+        CopyFileW(path.c_str(), (path + L".bak").c_str(), FALSE);
+
+    if (!MoveFileExW(temp.c_str(), path.c_str(), MOVEFILE_REPLACE_EXISTING))
+    {
+        DeleteFileW(temp.c_str());
+        return false;
+    }
+    loadedFromBackup_ = false;
+    return true;
 }
 
 StoredRecord* Store::Find(const std::wstring& key)

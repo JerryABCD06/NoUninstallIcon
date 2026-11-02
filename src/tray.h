@@ -16,7 +16,7 @@ struct Callbacks
 
 // Creates the hidden window, registers the icon and switches it to protocol
 // version 4. Returns false when the shell refuses the registration.
-bool Start(HINSTANCE instance, const std::wstring& tooltip, Callbacks callbacks);
+bool Start(HINSTANCE instance, const std::wstring& tooltip, bool visible, Callbacks callbacks);
 
 // Adds or removes the icon without touching the window, for a mode change while
 // the watcher keeps running.

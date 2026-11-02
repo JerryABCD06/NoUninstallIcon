@@ -42,6 +42,7 @@ private:
     // Set when the file on disk could not be read at all: saving then would
     // overwrite the only copy of what this tool hid, so the file is left alone.
     bool readOnly_ = false;
+    bool loadedFromBackup_ = false;
 
     std::vector<StoredRecord> records_;
     AppSettings settings_;

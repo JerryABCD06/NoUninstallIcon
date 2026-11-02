@@ -130,10 +130,10 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
 
 }  // namespace
 
-bool tray::Start(HINSTANCE instance, const std::wstring& tooltip, Callbacks callbacks)
+bool tray::Start(HINSTANCE instance, const std::wstring& tooltip, bool visible, Callbacks callbacks)
 {
-    if (gWindow) return true;
     gCallbacks = std::move(callbacks);
+    gDesiredVisible = visible;
 
     WNDCLASSEXW windowClass{};
     windowClass.cbSize = sizeof(windowClass);
@@ -175,7 +175,8 @@ bool tray::Start(HINSTANCE instance, const std::wstring& tooltip, Callbacks call
     gIcon.hIcon = gIconHandle;
     wcscpy_s(gIcon.szTip, tooltip.c_str());
 
-    return AddIcon();
+    // Silent mode and --no-tray must never create an icon, not even briefly.
+    return visible ? AddIcon() : true;
 }
 
 void tray::SetVisible(bool visible)
