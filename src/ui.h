@@ -208,7 +208,6 @@ private:
     FocusTarget focus_ = FocusTarget::Search;
     int lastAnnouncedGroup_ = -1;
     bool publishedAbout_ = false;
-    std::wstring publishedListName_;
     float previewScroll_ = -1.0f;
     bool focusRingVisible_ = false;
 
