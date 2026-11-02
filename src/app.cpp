@@ -555,8 +555,10 @@ int App::RunWatch(bool showTray)
     wc.hInstance = instance_;
     wc.lpszClassName = kWndClass;
     RegisterClassExW(&wc);
-    HWND hwnd = CreateWindowExW(0, kWndClass, L"NoUninstallIcon", 0, 0, 0, 0, 0, HWND_MESSAGE, nullptr,
-                                instance_, nullptr);
+    // A real (but never shown) top-level window: the shell cannot deliver tray
+    // callbacks to a message-only window, which is why clicks did nothing.
+    HWND hwnd = CreateWindowExW(WS_EX_TOOLWINDOW, kWndClass, L"NoUninstallIcon", WS_POPUP,
+                                0, 0, 0, 0, nullptr, nullptr, instance_, nullptr);
 
     NOTIFYICONDATAW icon{};
     icon.cbSize = sizeof(icon);
