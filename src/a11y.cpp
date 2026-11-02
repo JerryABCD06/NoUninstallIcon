@@ -208,11 +208,16 @@ public:
         // Skip ids that are not in the published snapshot: an action button can
         // be scrolled out of view, and a nameless ghost element would confuse
         // the screen reader.
-        auto exists = [](int value) {
+        // One lock acquisition per call: taking the mutex inside a loop that
+        // UIA may call back into is a needless contention point.
+        std::vector<int> present;
+        {
             std::lock_guard<std::mutex> guard(gMutex);
-            for (const auto& element : gElements)
-                if (static_cast<int>(element.id) == value) return true;
-            return false;
+            present.reserve(gElements.size());
+            for (const auto& element : gElements) present.push_back(static_cast<int>(element.id));
+        }
+        auto exists = [&present](int value) {
+            return std::find(present.begin(), present.end(), value) != present.end();
         };
 
         switch (direction)

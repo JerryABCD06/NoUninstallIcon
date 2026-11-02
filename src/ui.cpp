@@ -1748,6 +1748,13 @@ void MainWindow::DrawFocusRing()
         if (!HideActionRect(rect)) return;
         break;
     case FocusTarget::List:
+        if (entries_.empty())
+        {
+            // Nothing to point at, so the list area itself shows the focus.
+            rect = Rect(layout.list.left + 8.0f, layout.list.top + 6.0f, layout.list.right - 8.0f,
+                        layout.list.bottom - 8.0f);
+            break;
+        }
         for (const Entry& entry : entries_)
         {
             if (entry.header || entry.value != focusRow_) continue;
