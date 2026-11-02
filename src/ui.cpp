@@ -657,9 +657,12 @@ void MainWindow::DrawGroupHeader(const D2D1_RECT_F& rect, int group, bool sticky
 {
     if (sticky)
     {
+        // Opaque: a translucent fill lets the row underneath show through.
         D2D1_COLOR_F background = theme_.windowBg;
-        background.a = theme_.dark ? 0.92f : 0.92f;
+        background.a = 1.0f;
         painter_.FillRect(rect, background);
+        painter_.Line(D2D1::Point2F(rect.left, rect.bottom - 0.5f),
+                      D2D1::Point2F(rect.right, rect.bottom - 0.5f), theme_.stroke);
     }
 
     const wchar_t* title = group == 0 ? i18n::T(L"group.uninstall") : i18n::T(L"group.other");
@@ -1165,6 +1168,7 @@ void MainWindow::ScrollTo(float offset)
     float viewHeight = layout.list.bottom - layout.list.top;
     float maxScroll = std::max(0.0f, contentHeightCache_ - viewHeight);
     scroll_ = ClampF(offset, 0.0f, maxScroll);
+    DemoteHiddenFocus();
     Invalidate();
 }
 
@@ -1180,6 +1184,7 @@ void MainWindow::EnsureVisible(int rowIndex)
         break;
     }
     ClampScroll();
+    DemoteHiddenFocus();
 }
 
 void MainWindow::OnKeyDown(WPARAM key)
@@ -1461,8 +1466,17 @@ void MainWindow::CycleFocus(bool backwards)
     int index = 0;
     for (int i = 0; i < count; ++i)
         if (order[i] == focus_) index = i;
-    index = (index + (backwards ? count - 1 : 1)) % count;
-    SetFocusTarget(order[index]);
+
+    // Step over controls that are currently off-screen.
+    for (int step = 0; step < count; ++step)
+    {
+        index = (index + (backwards ? count - 1 : 1)) % count;
+        if (IsFocusTargetAvailable(order[index]))
+        {
+            SetFocusTarget(order[index]);
+            return;
+        }
+    }
 }
 
 void MainWindow::CycleAutostart(int delta)
@@ -1501,6 +1515,52 @@ void MainWindow::ApplyLanguage(const std::wstring& code)
     if (callbacks.languageChanged) callbacks.languageChanged(code);
 }
 
+bool MainWindow::HideActionRect(D2D1_RECT_F& rect)
+{
+    if (!model_ || entries_.empty()) return false;
+    if (!entries_[0].header || entries_[0].value != 0) return false;
+
+    Layout layout = ComputeLayout();
+
+    // Mirror DrawList: a header scrolled past the top is pinned, and the pinned
+    // one is what the user actually sees (and clicks).
+    float top = layout.list.top + entries_[0].top - scroll_;
+    if (entries_[0].top < scroll_)
+    {
+        float pinnedTop = layout.list.top;
+        for (int i = 1; i < static_cast<int>(entries_.size()); ++i)
+        {
+            if (!entries_[i].header) continue;
+            float nextTop = layout.list.top + entries_[i].top - scroll_;
+            if (nextTop < pinnedTop + kHeaderHeight) pinnedTop = nextTop - kHeaderHeight;
+            break;
+        }
+        top = pinnedTop;
+    }
+
+    D2D1_RECT_F header = Rect(layout.list.left, top, layout.list.right, top + kHeaderHeight);
+    D2D1_RECT_F action = GroupActionRect(header, 0);
+
+    // Only treat it as focusable when the whole button sits inside the viewport.
+    if (action.top < layout.list.top || action.bottom > layout.list.bottom) return false;
+
+    rect = action;
+    return true;
+}
+
+bool MainWindow::IsFocusTargetAvailable(FocusTarget target)
+{
+    if (target != FocusTarget::HideUninstall) return true;
+    D2D1_RECT_F rect{};
+    return HideActionRect(rect);
+}
+
+void MainWindow::DemoteHiddenFocus()
+{
+    if (focus_ == FocusTarget::HideUninstall && !IsFocusTargetAvailable(focus_))
+        SetFocusTarget(FocusTarget::List);
+}
+
 void MainWindow::DrawFocusRing()
 {
     if (aboutOpen_ || !focusRingVisible_) return;
@@ -1532,13 +1592,7 @@ void MainWindow::DrawFocusRing()
         rect = layout.aboutButton;
         break;
     case FocusTarget::HideUninstall:
-        for (const Entry& entry : entries_)
-        {
-            if (!entry.header) continue;
-            float top = layout.list.top + entry.top - scroll_;
-            rect = GroupActionRect(Rect(layout.list.left, top, layout.list.right, top + entry.height), 0);
-            break;
-        }
+        if (!HideActionRect(rect)) return;
         break;
     case FocusTarget::List:
         for (const Entry& entry : entries_)
@@ -1729,6 +1783,11 @@ void MainWindow::RenderTo(ID2D1RenderTarget* target, float width, float height, 
     painter_.SetScale(1.0f);
     if (model_) model_->Recompute();
     RebuildDisplay();
+    if (previewScroll_ >= 0.0f)
+    {
+        scroll_ = previewScroll_;
+        ClampScroll();
+    }
     RefreshText();
     Draw();
 }

@@ -52,6 +52,7 @@ public:
     void SetAboutOpen(bool open);
     void SetPreviewQuery(const std::wstring& text);
     void SetPreviewFocus(int index);
+    void SetPreviewScroll(int pixels) { previewScroll_ = static_cast<float>(pixels); }
     bool IsAboutOpen() const { return aboutOpen_; }
 
     // Off-screen rendering (used by --screenshot).
@@ -139,6 +140,9 @@ private:
     void CycleLanguage(int delta);
     void ApplyLanguage(const std::wstring& code);
     void DrawFocusRing();
+    bool HideActionRect(D2D1_RECT_F& rect);
+    bool IsFocusTargetAvailable(FocusTarget target);
+    void DemoteHiddenFocus();
     void ShowSearchMenu();
     size_t CaretFromX(float x, const Layout& layout);
     void InsertText(const std::wstring& text);
@@ -191,6 +195,7 @@ private:
     bool aboutOpen_ = false;
     bool aboutFocusLink_ = false;
     FocusTarget focus_ = FocusTarget::Search;
+    float previewScroll_ = -1.0f;
     bool focusRingVisible_ = false;
 
     ComPtr<IWICImagingFactory> wic_;

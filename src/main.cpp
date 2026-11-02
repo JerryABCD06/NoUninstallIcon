@@ -30,6 +30,7 @@ struct Options
     std::wstring capturePath;
     std::wstring previewQuery;
     int previewFocus = -1;
+    int previewScroll = -1;
     bool showAbout = false;
     bool themeSpecified = false;
     bool darkTheme = false;
@@ -92,6 +93,10 @@ Options ParseOptions(int argc, wchar_t** argv)
         {
             options.previewFocus = _wtoi(argv[++i]);
         }
+        else if (EqualsI(arg, L"--scroll") && i + 1 < argc)
+        {
+            options.previewScroll = _wtoi(argv[++i]);
+        }
         else if (EqualsI(arg, L"--about"))
         {
             options.showAbout = true;
@@ -143,6 +148,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
         app.ScanBlocking();
         if (options.showAbout) app.SetAboutOpen(true);
         if (!options.previewQuery.empty()) app.SetPreviewQuery(options.previewQuery);
+        if (options.previewScroll >= 0) app.SetPreviewScroll(options.previewScroll);
         if (options.previewFocus >= 0) app.SetPreviewFocus(options.previewFocus);
         return app.RenderScreenshot(options.path, dark) ? 0 : 1;
     }

@@ -29,6 +29,7 @@ public:
     void SetAboutOpen(bool open) { window_.SetAboutOpen(open); }
     void SetPreviewQuery(const std::wstring& text) { window_.SetPreviewQuery(text); }
     void SetPreviewFocus(int index) { window_.SetPreviewFocus(index); }
+    void SetPreviewScroll(int pixels) { window_.SetPreviewScroll(pixels); }
     void ScanBlocking();
     bool RenderScreenshot(const std::wstring& path, bool dark);
     void WriteDump(const std::wstring& path);
