@@ -20,7 +20,7 @@ autostart.watch=Keep watching
 autostart.hint.once=Applies the list once per sign-in, then exits.
 autostart.hint.watch=Stays in the background and re-applies instantly.
 
-status.summary={0} shortcuts  \u00B7  {1} hidden by this tool  \u00B7  {2} hidden elsewhere
+status.summary={0} shortcuts \u00B7 {1} hidden by this tool \u00B7 {2} hidden elsewhere
 status.loading=Scanning the Start menu...
 status.empty=No shortcuts were found.
 
@@ -78,9 +78,9 @@ a11y.list=Start menu shortcuts
 a11y.item.hidden=Hidden
 a11y.item.visible=Not hidden
 a11y.item.external=Hidden elsewhere
-toast.hiddenItem=“{0}” will no longer appear in the Start menu.
-toast.shownItem=“{0}” will appear in the Start menu again.
-toast.stillHiddenItem=This tool no longer hides “{0}”, but something else still does.
+toast.hiddenItem="{0}" will no longer appear in the Start menu.
+toast.shownItem="{0}" will appear in the Start menu again.
+toast.stillHiddenItem=This tool no longer hides "{0}", but something else still does.
 a11y.group.uninstall=Uninstall entries
 a11y.group.other=Other shortcuts
 a11y.state.hidden=hidden

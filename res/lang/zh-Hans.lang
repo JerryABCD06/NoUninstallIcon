@@ -20,7 +20,7 @@ autostart.watch=持续监视
 autostart.hint.once=每次登录生效一次，完成后退出。
 autostart.hint.watch=常驻后台，快捷方式一旦出现立刻隐藏。
 
-status.summary=共 {0} 个快捷方式  ·  本工具隐藏 {1} 个  ·  其他方式隐藏 {2} 个
+status.summary=共 {0} 个快捷方式 · 本工具隐藏 {1} 个 · 其他方式隐藏 {2} 个
 status.loading=正在扫描开始菜单…
 status.empty=没有找到任何快捷方式。
 
@@ -40,7 +40,7 @@ toast.unhidden=已恢复 {0} 项
 toast.failed=有 {0} 项无法修改
 toast.undo=撤销
 
-empty.search=没有匹配「{0}」的项
+empty.search=没有匹配“{0}”的项
 hint.keys=空格键切换勾选 · 回车打开文件位置
 
 error.elevation=修改所有用户的快捷方式需要管理员权限。
@@ -78,9 +78,9 @@ a11y.list=开始菜单快捷方式
 a11y.item.hidden=已隐藏
 a11y.item.visible=未隐藏
 a11y.item.external=已被其他方式隐藏
-toast.hiddenItem=“{0}” 不会再在“开始”菜单中显示。
-toast.shownItem=“{0}” 将在“开始”菜单中显示。
-toast.stillHiddenItem=本软件不再隐藏“{0}”，但是它仍被其他方式隐藏。
+toast.hiddenItem=“{0}”不会再在“开始”菜单中显示。
+toast.shownItem=“{0}”将在“开始”菜单中显示。
+toast.stillHiddenItem=本工具不再隐藏“{0}”，但是它仍被其他方式隐藏。
 a11y.group.uninstall=卸载类
 a11y.group.other=其他快捷方式
 a11y.state.hidden=已隐藏
@@ -94,5 +94,5 @@ a11y.announce.stillHidden=本工具不再隐藏 {0}，但它仍被其他方式�
 a11y.aboutDialog=关于
 a11y.aboutBody=本软件是自由软件。本软件采用 MIT 许可证发布。作者：王云正。
 a11y.aboutLink=打开作者主页：github.com/JerryABCD06
-a11y.emptySearch=没有匹配「{0}」的快捷方式
+a11y.emptySearch=没有匹配“{0}”的快捷方式
 a11y.emptyList=没有找到任何快捷方式

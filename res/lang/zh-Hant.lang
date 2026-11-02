@@ -20,7 +20,7 @@ autostart.watch=持續監視
 autostart.hint.once=每次登入生效一次，完成後結束。
 autostart.hint.watch=常駐背景，捷徑一出現就立刻隱藏。
 
-status.summary=共 {0} 個捷徑  ·  本工具隱藏 {1} 個  ·  其他方式隱藏 {2} 個
+status.summary=共 {0} 個捷徑 · 本工具隱藏 {1} 個 · 其他方式隱藏 {2} 個
 status.loading=正在掃描開始功能表…
 status.empty=找不到任何捷徑。
 
@@ -40,7 +40,7 @@ toast.unhidden=已還原 {0} 項
 toast.failed=有 {0} 項無法修改
 toast.undo=復原
 
-empty.search=沒有符合「{0}」的項目
+empty.search=沒有符合“{0}”的項目
 hint.keys=空格鍵切換勾選 · Enter 開啟檔案位置
 
 error.elevation=修改所有使用者的捷徑需要系統管理員權限。
@@ -94,5 +94,5 @@ a11y.announce.stillHidden=本工具不再隱藏 {0}，但它仍被其他方式�
 a11y.aboutDialog=關於
 a11y.aboutBody=本軟體是自由軟體。本軟體採用 MIT 授權條款發布。作者：王雲正。
 a11y.aboutLink=開啟作者首頁：github.com/JerryABCD06
-a11y.emptySearch=沒有符合「{0}」的捷徑
+a11y.emptySearch=沒有符合“{0}”的捷徑
 a11y.emptyList=找不到任何捷徑
