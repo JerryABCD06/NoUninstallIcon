@@ -130,7 +130,8 @@ bool ParseStateFile(const std::wstring& file, std::vector<StoredRecord>& records
             continue;
         }
 
-        if (fields[0] != L"R" || fields.size() < 9) continue;
+        if (fields[0] != L"R") continue;
+        if (fields.size() < 9) return false;  // a damaged record must not be dropped
         StoredRecord record;
         record.key = Unescape(fields[1]);
         record.path = Unescape(fields[2]);
@@ -193,6 +194,12 @@ bool Store::Load()
             LogLineF(L"Recovered %d record(s) from the backup", static_cast<int>(records_.size()));
             loadedFromBackup_ = true;
             return true;
+        }
+        if (PathFileExistsW((path + L".bak").c_str()))
+        {
+            readOnly_ = true;  // the backup is there but unreadable: keep it
+            LogLine(L"A backup exists but cannot be read; leaving both files alone");
+            return false;
         }
         return true;  // first run
     }

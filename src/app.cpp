@@ -94,6 +94,10 @@ void App::MergeRecords()
         }
         item.managed = true;
         item.desiredHidden = record->desiredHidden;
+        // The scanner is not the only thing that changes the disk.
+        DWORD nowAttributes = 0;
+        if (ReadAttributes(item.path, nowAttributes))
+            item.hiddenOnDisk = (nowAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
         record->path = item.path;
         record->displayName = item.displayName;
         record->target = item.target;
@@ -343,6 +347,7 @@ void App::HandleHideGroup(bool hide)
                 store_.Erase(item.key);
                 item.managed = false;
                 item.desiredHidden = false;
+                item.hiddenOnDisk = originallyHidden;
                 undo.push_back({item.path, (beforeAttributes & FILE_ATTRIBUTE_HIDDEN) != 0});
                 NotifyShellItem(item.path);
                 touched.push_back(item.key);
@@ -581,17 +586,26 @@ int App::RunGui(int showCommand)
     model_.loading = true;
     StartScan();
 
-    // If the sign-in task disappeared (Windows update, cleanup tool), recreate it
-    // in the background so a slow Task Scheduler service cannot delay startup.
+    // Reconcile the sign-in task with the stored mode in both directions: a task
+    // that Windows update or a cleanup tool removed comes back, and a task left
+    // behind by an earlier mode is removed instead of firing at every sign-in.
     const AutostartMode savedMode = store_.Settings().autostart;
-    if (savedMode != AutostartMode::Off)
-    {
-        std::thread([savedMode]() {
-            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-            if (!IsAutostartInstalled()) InstallAutostart(savedMode);
-            CoUninitialize();
-        }).detach();
-    }
+    std::thread([savedMode]() {
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        if (savedMode == AutostartMode::Off)
+        {
+            if (IsAutostartInstalled())
+            {
+                LogLine(L"startup: removing a task the stored mode no longer wants");
+                RemoveAutostart();
+            }
+        }
+        else if (!IsAutostartInstalled())
+        {
+            InstallAutostart(savedMode);
+        }
+        CoUninitialize();
+    }).detach();
 
     // Bring the runtime in line with the saved mode: publish it so a running
     // watcher adjusts, and start one when the mode wants it but none is running.

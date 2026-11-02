@@ -2321,6 +2321,10 @@ void MainWindow::ShowContextMenu(int rowIndex, bool fromKeyboard)
 
     const bool willHide = !(item->managed && item->desiredHidden);
     const bool hasTarget = !item->target.empty();
+    // The list can be rebuilt while the menu is open, because a scan may finish
+    // and replace model items and rows; remember the shortcut, not a pointer.
+    const std::wstring key = item->key;
+    const std::wstring target = item->target;
 
     HMENU menu = CreatePopupMenu();
     AppendMenuW(menu, MF_STRING, 1301, willHide ? i18n::T(L"menu.hide") : i18n::T(L"menu.show"));
@@ -2358,15 +2362,32 @@ void MainWindow::ShowContextMenu(int rowIndex, bool fromKeyboard)
     switch (command)
     {
     case 1301:
-        if (callbacks.toggleItem) callbacks.toggleItem(model_->rows[rowIndex], willHide);
-        break;
     case 1302:
-        if (callbacks.openLocation) callbacks.openLocation(model_->rows[rowIndex]);
-        break;
     case 1303:
     {
-        std::wstring arguments = L"/select,\"" + item->target + L"\"";
-        ShellExecuteW(nullptr, L"open", L"explorer.exe", arguments.c_str(), nullptr, SW_SHOWNORMAL);
+        // Find the shortcut again: the model may have been rebuilt meanwhile.
+        int itemIndex = -1;
+        for (int i = 0; i < static_cast<int>(model_->items.size()); ++i)
+        {
+            if (model_->items[i].key == key)
+            {
+                itemIndex = i;
+                break;
+            }
+        }
+        if (command == 1301)
+        {
+            if (itemIndex >= 0 && callbacks.toggleItem) callbacks.toggleItem(itemIndex, willHide);
+        }
+        else if (command == 1302)
+        {
+            if (itemIndex >= 0 && callbacks.openLocation) callbacks.openLocation(itemIndex);
+        }
+        else if (!target.empty())
+        {
+            std::wstring arguments = L"/select,\"" + target + L"\"";
+            ShellExecuteW(nullptr, L"open", L"explorer.exe", arguments.c_str(), nullptr, SW_SHOWNORMAL);
+        }
         break;
     }
     default:
