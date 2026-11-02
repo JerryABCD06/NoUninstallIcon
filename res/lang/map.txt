@@ -1,19 +1,65 @@
-# Windows locale -> language file. Longest matching prefix wins, so a locale
-# that is not listed here still resolves through its primary subtag.
+# Windows locale -> language file. The longest matching prefix wins, so an
+# unlisted region still resolves through its primary subtag (fr-CA -> fr).
+# Keep this list in sync with res/lang/*.lang.
+
+# Simplified Chinese
 zh-CN=zh-Hans
 zh-SG=zh-Hans
 zh-MY=zh-Hans
 zh-Hans=zh-Hans
+
+# Traditional Chinese
 zh-TW=zh-Hant
 zh-HK=zh-Hant
 zh-MO=zh-Hant
 zh-Hant=zh-Hant
+
 ja-JP=ja
+ko-KR=ko
+
+# German
 de-DE=de
 de-AT=de
 de-CH=de
 de-LI=de
 de-LU=de
+
+# French
+fr-FR=fr
+fr-BE=fr
+fr-CA=fr
+fr-CH=fr
+fr-LU=fr
+fr-MC=fr
+
+# Spanish
+es-ES=es
+es-MX=es
+es-AR=es
+es-CO=es
+es-CL=es
+es-PE=es
+es-VE=es
+es-US=es
+es-419=es
+
+# Italian
+it-IT=it
+it-CH=it
+
+# Portuguese: only Brazil exists, so Portugal and the other lusophone regions
+# fall back to it rather than to English.
+pt-BR=pt-BR
+pt-PT=pt-BR
+pt-AO=pt-BR
+pt-MZ=pt-BR
+
+# Russian
+ru-RU=ru
+ru-BY=ru
+ru-KZ=ru
+
+# English
 en-US=en
 en-GB=en
 en-AU=en
@@ -22,3 +68,5 @@ en-IE=en
 en-NZ=en
 en-ZA=en
 en-IN=en
+en-SG=en
+en-HK=en

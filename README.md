@@ -142,9 +142,11 @@ so tests never touch real shortcuts.
 
 ## Localisation
 
-All UI strings live in `res/lang/*.lang` and are embedded as `RCDATA`; English,
-German, Simplified Chinese, Traditional Chinese and Japanese ship today. Missing keys
-fall back to English.
+All UI strings live in `res/lang/*.lang` and are embedded as `RCDATA`. Eleven
+languages ship today: English, German, French, Spanish, Italian, Brazilian Portuguese,
+Russian, Korean, Japanese, Simplified Chinese and Traditional Chinese. Missing keys fall
+back to English, and so does a locale with no translation. `tools/check-lang.ps1` runs at
+the end of `build.bat` and reports any file whose key set differs from `en.lang`.
 
 `res/lang/map.txt` maps Windows locales to a language file (`zh-CN`, `zh-SG` and
 `zh-MY` all mean Simplified Chinese). The longest matching prefix wins, then the
