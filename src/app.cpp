@@ -141,7 +141,19 @@ void App::HandleToggle(int itemIndex, bool hidden)
             item.hiddenOnDisk = true;
             last_ = {{item.key}, true, true};
             NotifyShellItem(item.path);
-            store_.Save();
+            if (!store_.Save())
+            {
+                // The file did not take it, so put the attribute back: a hidden
+                // shortcut with no record is exactly what this tool must not leave.
+                SetShortcutHidden(item.path, (attributes & FILE_ATTRIBUTE_HIDDEN) != 0);
+                if (created) store_.Erase(item.key);
+                item.managed = false;
+                item.desiredHidden = false;
+                item.hiddenOnDisk = (attributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+                NotifyShellItem(item.path);
+                ShowToast(i18n::T(L"error.store"), false);
+                return;
+            }
             ShowToast(i18n::Tf(L"toast.hiddenItem", {item.displayName}), true);
             if (window_.Handle())
                 window_.Announce(i18n::Tf(L"a11y.announce.hidden", {item.displayName}));
@@ -159,13 +171,23 @@ void App::HandleToggle(int itemIndex, bool hidden)
         ApplyStatus status = SetShortcutHidden(item.path, originallyHidden);
         if (status == ApplyStatus::Ok)
         {
+            StoredRecord forgotten = record ? *record : StoredRecord{};
             store_.Erase(item.key);
             item.managed = false;
             item.desiredHidden = false;
             item.hiddenOnDisk = originallyHidden;
             last_ = {{item.key}, false, true};
             NotifyShellItem(item.path);
-            store_.Save();
+            if (!store_.Save())
+            {
+                // Put the record back: without it the shortcut is managed by
+                // nobody, and the next apply would hide it again behind our back.
+                StoredRecord& back = store_.Ensure(forgotten.key);
+                back = forgotten;
+                back.desiredHidden = false;
+                ShowToast(i18n::T(L"error.store"), false);
+                return;
+            }
             // A shortcut that was already hidden before this tool touched it stays
             // hidden; say so instead of letting the user think nothing happened.
             ShowToast(i18n::Tf(originallyHidden ? L"toast.stillHiddenItem" : L"toast.shownItem",
@@ -209,7 +231,11 @@ void App::HandleRestoreAll()
     // Only forget the ones that really came back: a failed restore must stay
     // fixable instead of leaving a hidden shortcut nobody manages.
     for (const auto& key : restoredKeys) store_.Erase(key);
-    store_.Save();
+    if (!store_.Save())
+    {
+        ShowToast(i18n::T(L"error.store"), false);
+        return;
+    }
     last_.valid = false;
     MergeRecords();
     window_.ModelChanged();
@@ -286,7 +312,11 @@ void App::HandleHideGroup(bool hide)
             }
         }
     }
-    store_.Save();
+    if (!store_.Save())
+    {
+        ShowToast(i18n::T(L"error.store"), false);
+        return;
+    }
     if (changed > 0)
         last_ = {touched, hide, true};
     else
@@ -397,7 +427,7 @@ int App::RunGui(int showCommand)
         if (!stateGuard.held()) return;
         store_.Load();  // a concurrent restore may have changed the file
         store_.Settings().language = code;
-        store_.Save();
+        if (!store_.Save()) LogLine(L"language: could not be saved");
     };
     window_.callbacks.undo = [this]() { HandleUndo(); };
     window_.callbacks.openLocation = [this](int index) { HandleOpenLocation(index); };
@@ -415,7 +445,7 @@ int App::RunGui(int showCommand)
             if (!stateGuard.held()) return;
             store_.Load();
             store_.Settings().autostart = mode;
-            store_.Save();
+            if (!store_.Save()) LogLine(L"autostart: could not be saved");
         }
         window_.SetAutostartMode(mode);
         // Tell the watcher what it should be. It adjusts its own icon and exits
@@ -549,7 +579,11 @@ int App::RunRestoreAll()
     // Only forget the ones that really came back: a failed restore must stay
     // fixable instead of leaving a hidden shortcut nobody manages.
     for (const auto& key : restoredKeys) store_.Erase(key);
-    store_.Save();
+    if (!store_.Save())
+    {
+        LogLine(L"Restore all could not be recorded");
+        return 1;
+    }
     LogLineF(L"Restore all finished, %d shortcut(s) restored", restored);
     return 0;
 }
@@ -633,7 +667,11 @@ int App::RunCleanup()
         {
             store_.Load();
             store_.Settings().autostart = AutostartMode::Off;
-            store_.Save();
+            if (!store_.Save())
+            {
+                LogLine(L"cleanup: the off mode could not be recorded");
+                return 1;
+            }
         }
     }
 
