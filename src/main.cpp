@@ -197,6 +197,28 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
         return launched ? 0 : 1;
     }
 
+    // One window at a time. A second launch activates the existing window
+    // instead of letting two processes race over the same state file.
+    HANDLE instanceMutex = CreateMutexW(nullptr, FALSE, L"Local\\NoUninstallIcon.MainWindow");
+    if (instanceMutex && GetLastError() == ERROR_ALREADY_EXISTS)
+    {
+        if (HWND existing = FindWindowW(L"NoUninstallIcon.MainWindow", nullptr))
+        {
+            if (IsIconic(existing)) ShowWindow(existing, SW_RESTORE);
+            const DWORD targetThread = GetWindowThreadProcessId(existing, nullptr);
+            const DWORD thisThread = GetCurrentThreadId();
+            if (targetThread && targetThread != thisThread)
+                AttachThreadInput(thisThread, targetThread, TRUE);
+            SetForegroundWindow(existing);
+            BringWindowToTop(existing);
+            if (targetThread && targetThread != thisThread)
+                AttachThreadInput(thisThread, targetThread, FALSE);
+            FlashWindow(existing, TRUE);
+        }
+        CloseHandle(instanceMutex);
+        return 0;
+    }
+
     return app.RunGui(showCommand);
 }
 

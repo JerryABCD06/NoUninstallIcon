@@ -639,7 +639,18 @@ int App::RunWatch(bool showTray)
             }
             ShellExecuteW(nullptr, L"open", GetExePath().c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         };
-        callbacks.quit = []() { PostQuitMessage(0); };
+        callbacks.quit = []() {
+            // Close the window first and wait for it to go: otherwise its own
+            // reconciliation would notice a missing watcher and start a new one
+            // just as this process exits.
+            if (HWND existing = FindWindowW(L"NoUninstallIcon.MainWindow", nullptr))
+            {
+                PostMessageW(existing, WM_CLOSE, 0, 0);
+                for (int tick = 0; tick < 40 && IsWindow(existing); ++tick)
+                    Sleep(50);
+            }
+            PostQuitMessage(0);
+        };
         tray::Start(instance_, i18n::T(L"app.title"), callbacks);
     }
 
