@@ -2345,10 +2345,12 @@ void MainWindow::PublishAccessibility(const Layout& layout)
 
         a11y::SnapshotElement dialog;
         dialog.id = a11y::Element::Dialog;
-        // One utterance on entry: the page name and its body. A focused element
-        // whose HasKeyboardFocus is false is ignored by screen readers, so this
-        // one has to own the focus.
-        dialog.name = std::wstring(i18n::T(L"a11y.aboutDialog")) + L"\u3002" + i18n::T(L"a11y.aboutBody");
+        // Speak exactly what the card shows, in the same order, rather than a
+        // purpose-written sentence. A focused element whose HasKeyboardFocus is
+        // false is ignored by screen readers, so this one owns the focus.
+        const std::wstring aboutBody = std::wstring(i18n::T(L"about.free")) + L" " + i18n::T(L"about.license") +
+                                       L" " + i18n::T(L"about.author") + i18n::T(L"about.author_name");
+        dialog.name = std::wstring(i18n::T(L"a11y.aboutDialog")) + L"\u3002" + aboutBody;
         dialog.bounds = toScreen(card);
         dialog.controlType = UIA_PaneControlTypeId;
         dialog.focused = !aboutTabbed_;
@@ -2356,7 +2358,7 @@ void MainWindow::PublishAccessibility(const Layout& layout)
 
         a11y::SnapshotElement body;
         body.id = a11y::Element::DialogText;
-        body.name = i18n::T(L"a11y.aboutBody");
+        body.name = aboutBody;
         body.bounds = toScreen(Rect(card.left + kPad, card.top + 60.0f, card.right - kPad, card.top + 140.0f));
         body.controlType = UIA_TextControlTypeId;
         body.focusable = true;
@@ -2365,7 +2367,7 @@ void MainWindow::PublishAccessibility(const Layout& layout)
 
         a11y::SnapshotElement link;
         link.id = a11y::Element::DialogLink;
-        link.name = i18n::T(L"a11y.aboutLink");
+        link.name = kAuthorDisplay;  // the same text the card shows
         link.bounds = toScreen(Rect(card.left + kPad, card.top + 118.0f, card.right - kPad, card.top + 162.0f));
         link.controlType = UIA_HyperlinkControlTypeId;
         link.focusable = true;
@@ -2401,6 +2403,8 @@ void MainWindow::PublishAccessibility(const Layout& layout)
     {
         listName = query_.empty() ? i18n::T(L"status.empty") : i18n::Tf(L"empty.search", {query_});
     }
+    publishedListName_ = listName;
+
     // An empty list must not announce itself as a list: a screen reader enters
     // it looking for items, finds none and says nothing. With no items the
     // control is just the sentence it displays.
@@ -2471,10 +2475,11 @@ void MainWindow::AnnounceFocus()
     a11y::NotifyFocus(element);
 
     // An empty result list has no items for a screen reader to land on, so the
-    // focus event alone produces silence. Announce the message directly.
-    if (focus_ == FocusTarget::List && (!model_ || model_->RowCount() == 0))
+    // focus event alone produces silence. Announce the text the element itself
+    // carries, so what is heard is what is shown.
+    if (focus_ == FocusTarget::List && (!model_ || model_->RowCount() == 0) && !publishedListName_.empty())
     {
-        a11y::Notify(query_.empty() ? i18n::T(L"status.empty") : i18n::Tf(L"empty.search", {query_}));
+        a11y::Notify(publishedListName_);
     }
 }
 void MainWindow::Announce(const std::wstring& text)
