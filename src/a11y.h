@@ -52,6 +52,7 @@ void Publish(const std::vector<SnapshotElement>& elements);
 void NotifyFocus(Element element);
 void Notify(const std::wstring& text);
 void NotifyValueChanged(const std::wstring& value);
+void NotifySearchName(const std::wstring& name);
 
 LRESULT HandleGetObject(HWND hwnd, WPARAM wparam, LPARAM lparam);
 

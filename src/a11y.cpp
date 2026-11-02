@@ -462,7 +462,9 @@ void Notify(const std::wstring& text)
     provider->Release();
 }
 
-void NotifyValueChanged(const std::wstring& value)
+namespace {
+
+void RaiseStringProperty(PROPERTYID propertyId, const std::wstring& value)
 {
     Provider* provider = new (std::nothrow) Provider(Element::Search);
     if (!provider) return;
@@ -475,10 +477,22 @@ void NotifyValueChanged(const std::wstring& value)
     newValue.bstrVal = SysAllocString(value.c_str());
     if (newValue.bstrVal)
     {
-        UiaRaiseAutomationPropertyChangedEvent(provider, UIA_ValueValuePropertyId, oldValue, newValue);
+        UiaRaiseAutomationPropertyChangedEvent(provider, propertyId, oldValue, newValue);
         VariantClear(&newValue);
     }
     provider->Release();
+}
+
+}  // namespace
+
+void NotifyValueChanged(const std::wstring& value)
+{
+    RaiseStringProperty(UIA_ValueValuePropertyId, value);
+}
+
+void NotifySearchName(const std::wstring& name)
+{
+    RaiseStringProperty(UIA_NamePropertyId, name);
 }
 
 void NotifyFocus(Element element)
