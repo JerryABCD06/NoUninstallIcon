@@ -1,0 +1,108 @@
+lang.native_name=Português (Brasil)
+lang.code=pt-BR
+lang.system=Sistema
+
+app.title=Não preciso do ícone de desinstalação
+app.subtitle=Ocultar atalhos do menu Iniciar
+
+search.placeholder=Pesquisar nome ou caminho
+search.clear=Limpar
+
+group.uninstall=Itens de desinstalação
+group.other=Outros atalhos
+group.items={0} itens
+
+toggle.autostart=Ocultar automaticamente ao entrar
+autostart.mode=Modo
+autostart.off=Desligado
+autostart.once=Uma vez ao entrar
+autostart.watch=Monitorar continuamente
+autostart.hint.once=Aplica a lista uma vez por sessão e encerra.
+autostart.hint.watch=Fica em segundo plano e reaplica na hora.
+
+status.summary={0} atalhos · {1} ocultos por esta ferramenta · {2} ocultos de outra forma
+status.loading=Analisando o menu Iniciar…
+status.empty=Nenhum atalho encontrado.
+
+badge.user=Usuário
+badge.machine=Todos os usuários
+badge.external=Oculto de outra forma
+
+action.rescan=Analisar novamente
+action.hide_group=Ocultar tudo
+action.unhide_group=Mostrar todo o grupo
+action.restore_all=Restaurar tudo
+action.open_location=Abrir local do arquivo
+action.copy_path=Copiar caminho
+
+toast.hidden={0} ocultados
+toast.unhidden={0} restaurados
+toast.failed={0} não puderam ser alterados
+toast.undo=Desfazer
+
+toast.hiddenItem=“{0}” não aparecerá mais no menu Iniciar.
+toast.shownItem=“{0}” voltará a aparecer no menu Iniciar.
+toast.stillHiddenItem=Esta ferramenta não oculta mais “{0}”, mas algo ainda o oculta.
+
+empty.search=Nenhum resultado para “{0}”
+hint.keys=Espaço alterna · Enter abre o local do arquivo
+
+error.elevation=Alterar atalhos de todos os usuários exige privilégios de administrador.
+error.store=Não foi possível gravar o arquivo de estado.
+error.task=Não foi possível criar a tarefa de entrada.
+error.task_removed=A tarefa de entrada foi removida.
+
+confirm.restore_all=Restaurar todos os atalhos ocultos por esta ferramenta?
+confirm.hide_group=Ocultar todos os {0} atalhos deste grupo?
+
+tray.show=Abrir
+tray.quit=Sair
+
+about.button=Sobre
+about.title=Sobre
+about.free=Este é um software livre.
+about.license=Publicado sob a licença MIT.
+about.author=Autor: 
+about.ok=OK
+about.author_name=Wang Yunzheng
+
+edit.cut=Recortar
+edit.copy=Copiar
+edit.paste=Colar
+edit.select_all=Selecionar tudo
+edit.clear=Limpar
+
+a11y.app=Não preciso do ícone de desinstalação
+a11y.search=Pesquisar atalhos
+a11y.rescan=Analisar novamente
+a11y.restoreAll=Restaurar todos os atalhos ocultos por esta ferramenta
+a11y.hideGroup=Ocultar todos os itens de desinstalação da lista
+a11y.autostart=Ocultar automaticamente ao entrar
+a11y.language=Idioma
+a11y.about=Sobre
+a11y.list=Atalhos do menu Iniciar
+a11y.item.hidden=Oculto
+a11y.item.visible=Não oculto
+a11y.item.external=Oculto de outra forma
+a11y.group.uninstall=Itens de desinstalação
+a11y.group.other=Outros atalhos
+a11y.state.hidden=oculto
+a11y.state.visible=não oculto
+a11y.state.external=oculto de outra forma
+a11y.row={0}, {1}
+a11y.rowGrouped={0}, {1}, {2}
+a11y.announce.hidden={0} ocultado. Ele não aparece mais no menu Iniciar.
+a11y.announce.shown={0} exibido. Ele volta a aparecer no menu Iniciar.
+a11y.announce.stillHidden=Esta ferramenta não oculta mais {0}, mas ele ainda está oculto de outra forma.
+a11y.aboutDialog=Sobre
+a11y.aboutBody=Este é um software livre. Publicado sob a licença MIT. Autor: Wang Yunzheng.
+a11y.aboutLink=Abrir o perfil do autor: github.com/JerryABCD06
+a11y.emptySearch=Nenhum atalho corresponde a “{0}”
+a11y.emptyList=Nenhum atalho encontrado
+
+menu.hide=Ocultar
+menu.show=Mostrar
+menu.open_shortcut=Abrir local do atalho
+menu.open_target=Abrir local do destino
+
+autostart.portable_note=Modo portátil: cria uma tarefa de entrada fora desta pasta
