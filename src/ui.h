@@ -5,6 +5,7 @@
 #include "model.h"
 #include "paint.h"
 #include "gfx.h"
+#include "a11y.h"
 
 struct UiCallbacks
 {
@@ -140,6 +141,8 @@ private:
     void CycleLanguage(int delta);
     void ApplyLanguage(const std::wstring& code);
     void DrawFocusRing();
+    void PublishAccessibility(const Layout& layout);
+    void AnnounceFocus();
     void StartIconWorker();
     void StopIconWorker();
     void IconWorkerMain();

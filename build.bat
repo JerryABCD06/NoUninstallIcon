@@ -51,7 +51,7 @@ cl %CFLAGS% /Fo"%BUILD%\\" /Fd"%BUILD%\app.pdb" "%ROOT%\src\*.cpp" "%BUILD%\app.
   /link %LDFLAGS% /OUT:"%BUILD%\NoUninstallIcon.exe" ^
   d2d1.lib dwrite.lib d3d11.lib dxgi.lib dcomp.lib windowscodecs.lib ^
   shlwapi.lib propsys.lib taskschd.lib ole32.lib oleaut32.lib uuid.lib ^
-  shell32.lib user32.lib gdi32.lib imm32.lib advapi32.lib dwmapi.lib uxtheme.lib dbghelp.lib
+  shell32.lib user32.lib gdi32.lib imm32.lib advapi32.lib dwmapi.lib uxtheme.lib dbghelp.lib uiautomationcore.lib
 if errorlevel 1 (
     echo [build] FAILED
     popd

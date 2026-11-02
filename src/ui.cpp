@@ -1,6 +1,8 @@
 #include "ui.h"
 
 #include "i18n.h"
+
+#include <uiautomation.h>
 #include "util.h"
 
 #include <imm.h>
@@ -200,6 +202,8 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         // Already delivered through WM_IME_COMPOSITION; letting DefWindowProc
         // translate it would insert every character twice.
         return 0;
+    case WM_GETOBJECT:
+        return a11y::HandleGetObject(hwnd_, wparam, lparam);
     case WM_GETMINMAXINFO:
     {
         auto* info = reinterpret_cast<MINMAXINFO*>(lparam);
@@ -208,6 +212,7 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         return 0;
     }
     case WM_DESTROY:
+        a11y::Uninstall();
         StopIconWorker();
         GfxDestroy(gfx_);
         PostQuitMessage(0);
@@ -232,6 +237,7 @@ void MainWindow::OnCreate()
     gfx_.dpi = scale_ * 96.0f;
     GfxCreate(gfx_, hwnd_, static_cast<UINT>(clientWidth_), static_cast<UINT>(clientHeight_), gfx_.dpi);
 
+    a11y::Install(hwnd_);
     StartIconWorker();
     ApplyTheme();
     RefreshText();
@@ -504,6 +510,7 @@ void MainWindow::Draw()
     DrawList(layout);
     DrawFooter(layout);
     DrawFocusRing();
+    PublishAccessibility(layout);
     if (toastVisible_) DrawToast(layout);
     if (aboutOpen_) DrawAbout(layout);
 }
@@ -1517,6 +1524,7 @@ void MainWindow::HandleListKey(WPARAM key)
         if (focusRow_ < 0) focusRow_ = 0;
         EnsureVisible(focusRow_);
         Invalidate();
+        AnnounceFocus();
         return;
     case VK_UP:
         if (focusRow_ <= 0)
@@ -1526,17 +1534,20 @@ void MainWindow::HandleListKey(WPARAM key)
             focusRow_ = focusRow_ - 1;
             EnsureVisible(focusRow_);
             Invalidate();
+            AnnounceFocus();
         }
         return;
     case VK_HOME:
         focusRow_ = 0;
         EnsureVisible(focusRow_);
         Invalidate();
+        AnnounceFocus();
         return;
     case VK_END:
         focusRow_ = rows - 1;
         EnsureVisible(focusRow_);
         Invalidate();
+        AnnounceFocus();
         return;
     case VK_NEXT:
         ScrollTo(scroll_ + (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f);
@@ -1587,6 +1598,7 @@ void MainWindow::SetFocusTarget(FocusTarget target)
         EnsureVisible(focusRow_);
     }
     Invalidate();
+    AnnounceFocus();
 }
 
 void MainWindow::CycleFocus(bool backwards)
@@ -2246,4 +2258,105 @@ void MainWindow::SetPreviewQuery(const std::wstring& text)
     searchFocused_ = true;
     caretVisible_ = true;
     UpdateQuery();
+}
+void MainWindow::PublishAccessibility(const Layout& layout)
+{
+    if (!hwnd_) return;
+
+    POINT origin{0, 0};
+    ClientToScreen(hwnd_, &origin);
+    auto toScreen = [&](const D2D1_RECT_F& rect) {
+        RECT out{};
+        out.left = origin.x + static_cast<LONG>(rect.left * scale_);
+        out.top = origin.y + static_cast<LONG>(rect.top * scale_);
+        out.right = origin.x + static_cast<LONG>(rect.right * scale_);
+        out.bottom = origin.y + static_cast<LONG>(rect.bottom * scale_);
+        return out;
+    };
+
+    std::vector<a11y::SnapshotElement> elements;
+
+    a11y::SnapshotElement root;
+    root.id = a11y::Element::Root;
+    root.name = i18n::T(L"a11y.app");
+    root.bounds = toScreen(Rect(0.0f, 0.0f, static_cast<float>(clientWidth_) / scale_,
+                                static_cast<float>(clientHeight_) / scale_));
+    root.controlType = UIA_WindowControlTypeId;
+    root.focusable = false;
+    root.focused = false;
+    elements.push_back(root);
+
+    auto add = [&](a11y::Element id, const wchar_t* name, const D2D1_RECT_F& rect, int controlType,
+                   bool focused) {
+        a11y::SnapshotElement element;
+        element.id = id;
+        element.name = name;
+        element.bounds = toScreen(rect);
+        element.controlType = controlType;
+        element.focused = focused;
+        elements.push_back(std::move(element));
+    };
+
+    add(a11y::Element::Search, i18n::T(L"a11y.search"), layout.search, UIA_EditControlTypeId,
+        focus_ == FocusTarget::Search);
+    add(a11y::Element::Rescan, i18n::T(L"a11y.rescan"), layout.rescan, UIA_ButtonControlTypeId,
+        focus_ == FocusTarget::Rescan);
+    add(a11y::Element::RestoreAll, i18n::T(L"a11y.restoreAll"), layout.restoreAll, UIA_ButtonControlTypeId,
+        focus_ == FocusTarget::RestoreAll);
+
+    D2D1_RECT_F groupAction{0.0f, 0.0f, 0.0f, 0.0f};
+    if (HideActionRect(groupAction))
+    {
+        add(a11y::Element::HideUninstall, i18n::T(L"a11y.hideGroup"), groupAction, UIA_ButtonControlTypeId,
+            focus_ == FocusTarget::HideUninstall);
+    }
+
+    add(a11y::Element::Autostart, i18n::T(L"a11y.autostart"), layout.autostartCombo,
+        UIA_ComboBoxControlTypeId, focus_ == FocusTarget::Autostart);
+    add(a11y::Element::Language, i18n::T(L"a11y.language"), layout.language, UIA_ComboBoxControlTypeId,
+        focus_ == FocusTarget::Language);
+    add(a11y::Element::About, i18n::T(L"a11y.about"), layout.aboutButton, UIA_ButtonControlTypeId,
+        focus_ == FocusTarget::About);
+
+    // The list announces the focused row, because rows are not individual UIA
+    // elements: 300+ items would make the tree far too heavy.
+    std::wstring listName = i18n::T(L"a11y.list");
+    if (model_ && focus_ == FocusTarget::List)
+    {
+        const ShortcutItem* item = model_->At(focusRow_);
+        if (item)
+        {
+            const wchar_t* state = (item->managed && item->desiredHidden)
+                                       ? i18n::T(L"a11y.item.hidden")
+                                       : (item->hiddenOnDisk ? i18n::T(L"a11y.item.external")
+                                                             : i18n::T(L"a11y.item.visible"));
+            listName = item->displayName + L", " + state + L", " + listName;
+        }
+    }
+    add(a11y::Element::List, listName.c_str(), layout.list, UIA_ListControlTypeId, focus_ == FocusTarget::List);
+
+    a11y::Publish(elements);
+}
+
+void MainWindow::AnnounceFocus()
+{
+    if (!hwnd_) return;
+
+    a11y::Element element = a11y::Element::Root;
+    switch (focus_)
+    {
+    case FocusTarget::Search: element = a11y::Element::Search; break;
+    case FocusTarget::List: element = a11y::Element::List; break;
+    case FocusTarget::Rescan: element = a11y::Element::Rescan; break;
+    case FocusTarget::RestoreAll: element = a11y::Element::RestoreAll; break;
+    case FocusTarget::HideUninstall: element = a11y::Element::HideUninstall; break;
+    case FocusTarget::Autostart: element = a11y::Element::Autostart; break;
+    case FocusTarget::Language: element = a11y::Element::Language; break;
+    case FocusTarget::About: element = a11y::Element::About; break;
+    }
+
+    // Refresh the snapshot first so the provider reports the new focused flag
+    // and, for the list, the new row text.
+    PublishAccessibility(ComputeLayout());
+    a11y::NotifyFocus(element);
 }
