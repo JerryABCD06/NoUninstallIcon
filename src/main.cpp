@@ -26,6 +26,7 @@ struct Options
     Mode mode = Mode::Gui;
     std::wstring path;
     std::wstring capturePath;
+    std::wstring previewQuery;
     bool showAbout = false;
     bool themeSpecified = false;
     bool darkTheme = false;
@@ -75,6 +76,10 @@ Options ParseOptions(int argc, wchar_t** argv)
         {
             options.mode = Options::Mode::Preview;
             options.capturePath = argv[++i];
+        }
+        else if (EqualsI(arg, L"--query") && i + 1 < argc)
+        {
+            options.previewQuery = argv[++i];
         }
         else if (EqualsI(arg, L"--about"))
         {
@@ -135,6 +140,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
         bool dark = options.themeSpecified ? options.darkTheme : IsSystemDarkMode();
         app.ScanBlocking();
         if (options.showAbout) app.SetAboutOpen(true);
+        if (!options.previewQuery.empty()) app.SetPreviewQuery(options.previewQuery);
         bool ok = app.RenderScreenshot(options.path, dark);
         CoUninitialize();
         return ok ? 0 : 1;

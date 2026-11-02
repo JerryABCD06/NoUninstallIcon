@@ -20,6 +20,7 @@ public:
     int RunWatch();
     void SetCapturePath(const std::wstring& path) { capturePath_ = path; }
     void SetAboutOpen(bool open) { window_.SetAboutOpen(open); }
+    void SetPreviewQuery(const std::wstring& text) { window_.SetPreviewQuery(text); }
     void ScanBlocking();
     bool RenderScreenshot(const std::wstring& path, bool dark);
     void WriteDump(const std::wstring& path);

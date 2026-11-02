@@ -37,6 +37,7 @@ public:
     void FocusSearch();
     void RefreshText();
     void SetAboutOpen(bool open);
+    void SetPreviewQuery(const std::wstring& text);
     bool IsAboutOpen() const { return aboutOpen_; }
 
     // Off-screen rendering (used by --screenshot).
@@ -59,6 +60,7 @@ private:
         D2D1_RECT_F title{};
         D2D1_RECT_F subtitle{};
         D2D1_RECT_F search{};
+        D2D1_RECT_F searchText{};
         D2D1_RECT_F rescan{};
         D2D1_RECT_F restoreAll{};
         D2D1_RECT_F list{};
@@ -86,6 +88,7 @@ private:
     void OnMouseMove(int x, int y);
     void OnLeftDown(int x, int y);
     void OnLeftUp(int x, int y);
+    void OnRightClick(int x, int y);
     void OnMouseWheel(int delta);
     void OnKeyDown(WPARAM key);
     void OnChar(wchar_t ch);
@@ -114,6 +117,15 @@ private:
     ID2D1Bitmap* IconFor(const std::wstring& path, int size);
 
     void SetSearchFocus(bool focused);
+    void ShowSearchMenu();
+    size_t CaretFromX(float x, const Layout& layout);
+    void InsertText(const std::wstring& text);
+    void CopySelection(bool cut);
+    void PasteFromClipboard();
+    void DeleteSelection();
+    void ClampCaret();
+    std::wstring SelectedText() const;
+    bool HasSelection() const { return caret_ != anchor_; }
     void UpdateQuery();
     void ScrollTo(float offset);
     void EnsureVisible(int rowIndex);
@@ -146,6 +158,9 @@ private:
 
     std::wstring query_;
     std::wstring composition_;
+    size_t caret_ = 0;
+    size_t anchor_ = 0;
+    bool selecting_ = false;
     bool caretVisible_ = true;
 
     bool toastVisible_ = false;

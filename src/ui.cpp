@@ -147,6 +147,9 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
     case WM_LBUTTONUP:
         OnLeftUp(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
         return 0;
+    case WM_RBUTTONUP:
+        OnRightClick(GET_X_LPARAM(lparam), GET_Y_LPARAM(lparam));
+        return 0;
     case WM_LBUTTONDBLCLK:
     {
         float y = static_cast<float>(GET_Y_LPARAM(lparam)) / scale_;
@@ -177,6 +180,10 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         return 0;
     case WM_IME_ENDCOMPOSITION:
         OnImeEndComposition();
+        return 0;
+    case WM_IME_CHAR:
+        // Already delivered through WM_IME_COMPOSITION; letting DefWindowProc
+        // translate it would insert every character twice.
         return 0;
     case WM_GETMINMAXINFO:
     {
@@ -333,6 +340,7 @@ void MainWindow::ClampScroll()
 
 void MainWindow::UpdateQuery()
 {
+    ClampCaret();
     if (!model_) return;
     model_->query = query_;
     RebuildDisplay();
@@ -424,6 +432,8 @@ MainWindow::Layout MainWindow::ComputeLayout() const
     layout.title = Rect(kPad, 12.0f, width - kPad, 46.0f);
     layout.subtitle = Rect(kPad, 46.0f, width - kPad, 64.0f);
     layout.search = Rect(kPad, kToolbarTop, kPad + 380.0f, kToolbarTop + kToolbarHeight);
+    layout.searchText = Rect(layout.search.left + 34.0f, layout.search.top, layout.search.right - 30.0f,
+                             layout.search.bottom);
 
     float rightEdge = width - kPad;
     layout.rescan = Rect(rightEdge - 108.0f, kToolbarTop, rightEdge, kToolbarTop + kToolbarHeight);
@@ -501,35 +511,57 @@ void MainWindow::DrawToolbar(const Layout& layout)
     painter_.Text(kIconSearch, painter_.IconFormat(14.0f), iconRect, theme_.textDim,
                   DWRITE_TEXT_ALIGNMENT_CENTER, false);
 
-    std::wstring shown = query_;
-    bool empty = shown.empty() && composition_.empty();
     IDWriteTextFormat* textFormat = painter_.Format(13.0f, DWRITE_FONT_WEIGHT_NORMAL);
-    D2D1_RECT_F textRect = Rect(layout.search.left + 34.0f, layout.search.top, layout.search.right - 30.0f,
-                                layout.search.bottom);
+    const D2D1_RECT_F textRect = layout.searchText;
 
-    if (empty)
+    float caretX = textRect.left + painter_.TextWidth(query_.substr(0, caret_), textFormat);
+
+    if (query_.empty() && composition_.empty())
     {
         painter_.Text(i18n::T(L"search.placeholder"), textFormat, textRect, theme_.textFaint);
     }
     else
     {
-        painter_.Text(shown, textFormat, textRect, theme_.text);
-        if (!composition_.empty())
+        painter_.PushClip(textRect);
+
+        if (HasSelection())
         {
-            float offset = painter_.TextWidth(shown, textFormat);
-            D2D1_RECT_F compRect = Rect(textRect.left + offset, textRect.top, textRect.right, textRect.bottom);
-            painter_.Text(composition_, textFormat, compRect, theme_.text);
+            size_t from = std::min(caret_, anchor_);
+            size_t to = std::max(caret_, anchor_);
+            float x1 = textRect.left + painter_.TextWidth(query_.substr(0, from), textFormat);
+            float x2 = textRect.left + painter_.TextWidth(query_.substr(0, to), textFormat);
+            painter_.FillRect(Rect(x1, textRect.top + 7.0f, x2, textRect.bottom - 7.0f),
+                              WithAlpha(theme_.accent, 0.30f));
         }
+
+        if (composition_.empty())
+        {
+            painter_.Text(query_, textFormat, textRect, theme_.text);
+        }
+        else
+        {
+            painter_.Text(query_.substr(0, caret_), textFormat, textRect, theme_.text);
+            float compositionWidth = painter_.TextWidth(composition_, textFormat);
+            painter_.Text(composition_, textFormat,
+                          Rect(caretX, textRect.top, caretX + compositionWidth + 4.0f, textRect.bottom),
+                          theme_.text, DWRITE_TEXT_ALIGNMENT_LEADING, false);
+            painter_.Line(D2D1::Point2F(caretX, textRect.bottom - 8.0f),
+                          D2D1::Point2F(caretX + compositionWidth, textRect.bottom - 8.0f), theme_.accent, 1.0f);
+            if (caret_ < query_.size())
+                painter_.Text(query_.substr(caret_), textFormat,
+                              Rect(caretX + compositionWidth, textRect.top, textRect.right, textRect.bottom),
+                              theme_.text, DWRITE_TEXT_ALIGNMENT_LEADING, false);
+            caretX += compositionWidth;
+        }
+
+        painter_.PopClip();
     }
 
-    if (searchFocused_ && caretVisible_)
+    if (searchFocused_ && caretVisible_ && composition_.empty())
     {
-        std::wstring measure = shown + composition_;
-        float offset = painter_.TextWidth(measure, textFormat);
-        float caretX = ClampF(textRect.left + offset + 1.0f, textRect.left, layout.search.right - 8.0f);
-        float caretTop = layout.search.top + 9.0f;
-        painter_.Line(D2D1::Point2F(caretX, caretTop), D2D1::Point2F(caretX, layout.search.bottom - 9.0f),
-                      theme_.accent, 1.2f);
+        float clamped = ClampF(caretX + 0.5f, textRect.left, layout.search.right - 8.0f);
+        painter_.Line(D2D1::Point2F(clamped, layout.search.top + 9.0f),
+                      D2D1::Point2F(clamped, layout.search.bottom - 9.0f), theme_.accent, 1.2f);
     }
 
     if (!query_.empty() || !composition_.empty())
@@ -934,6 +966,13 @@ void MainWindow::OnMouseMove(int x, int y)
         return;
     }
 
+    if (selecting_)
+    {
+        caret_ = CaretFromX(fx, layout);
+        Invalidate();
+        return;
+    }
+
     int row = RowAtPoint(fy, nullptr);
     int control = 0;
     if (row < 0)
@@ -1011,8 +1050,15 @@ void MainWindow::OnLeftDown(int x, int y)
         if (!query_.empty() && fx > layout.search.right - 30.0f)
         {
             query_.clear();
+            caret_ = anchor_ = 0;
             UpdateQuery();
+            return;
         }
+        caret_ = CaretFromX(fx, layout);
+        anchor_ = caret_;
+        selecting_ = true;
+        SetCapture(hwnd_);
+        Invalidate();
         return;
     }
     SetSearchFocus(false);
@@ -1087,6 +1133,11 @@ void MainWindow::OnLeftUp(int x, int y)
 {
     if (draggingThumb_) ReleaseCapture();
     draggingThumb_ = false;
+    if (selecting_)
+    {
+        selecting_ = false;
+        ReleaseCapture();
+    }
     (void)x;
     (void)y;
 }
@@ -1133,11 +1184,31 @@ void MainWindow::OnKeyDown(WPARAM key)
     }
     if (searchFocused_)
     {
-        if (key == VK_ESCAPE)
+        const bool shift = (GetKeyState(VK_SHIFT) & 0x8000) != 0;
+        const bool ctrl = (GetKeyState(VK_CONTROL) & 0x8000) != 0;
+
+        auto moveCaret = [this, shift](long delta) {
+            long next = static_cast<long>(caret_) + delta;
+            long limit = static_cast<long>(query_.size());
+            next = next < 0 ? 0 : (next > limit ? limit : next);
+            caret_ = static_cast<size_t>(next);
+            if (!shift) anchor_ = caret_;
+            caretVisible_ = true;
+            Invalidate();
+        };
+
+        switch (key)
         {
-            if (!query_.empty())
+        case VK_ESCAPE:
+            if (HasSelection())
+            {
+                anchor_ = caret_;
+                Invalidate();
+            }
+            else if (!query_.empty())
             {
                 query_.clear();
+                caret_ = anchor_ = 0;
                 UpdateQuery();
             }
             else
@@ -1145,12 +1216,77 @@ void MainWindow::OnKeyDown(WPARAM key)
                 SetSearchFocus(false);
             }
             return;
-        }
-        if (key == VK_BACK && composition_.empty() && !query_.empty())
-        {
-            query_.pop_back();
-            UpdateQuery();
+        case VK_LEFT:
+            moveCaret(-1);
             return;
+        case VK_RIGHT:
+            moveCaret(1);
+            return;
+        case VK_HOME:
+            caret_ = 0;
+            if (!shift) anchor_ = caret_;
+            caretVisible_ = true;
+            Invalidate();
+            return;
+        case VK_END:
+            caret_ = query_.size();
+            if (!shift) anchor_ = caret_;
+            caretVisible_ = true;
+            Invalidate();
+            return;
+        case VK_BACK:
+            if (HasSelection())
+                DeleteSelection();
+            else if (caret_ > 0)
+            {
+                query_.erase(caret_ - 1, 1);
+                --caret_;
+                anchor_ = caret_;
+                UpdateQuery();
+            }
+            return;
+        case VK_DELETE:
+            if (HasSelection())
+                DeleteSelection();
+            else if (caret_ < query_.size())
+            {
+                query_.erase(caret_, 1);
+                anchor_ = caret_;
+                UpdateQuery();
+            }
+            return;
+        case 'A':
+            if (ctrl)
+            {
+                anchor_ = 0;
+                caret_ = query_.size();
+                Invalidate();
+                return;
+            }
+            break;
+        case 'C':
+            if (ctrl)
+            {
+                CopySelection(false);
+                return;
+            }
+            break;
+        case 'X':
+            if (ctrl)
+            {
+                CopySelection(true);
+                return;
+            }
+            break;
+        case 'V':
+            if (ctrl)
+            {
+                PasteFromClipboard();
+                return;
+            }
+            break;
+        default:
+            break;
         }
     }
 
@@ -1209,9 +1345,7 @@ void MainWindow::OnChar(wchar_t ch)
 {
     if (!searchFocused_) return;
     if (ch < 32) return;
-    query_.push_back(ch);
-    UpdateQuery();
-    UpdateImePosition();
+    InsertText(std::wstring(1, ch));
 }
 
 void MainWindow::OnImeStartComposition()
@@ -1232,10 +1366,14 @@ void MainWindow::OnImeComposition(LPARAM flags)
         {
             std::wstring result(static_cast<size_t>(bytes) / sizeof(wchar_t), L'\0');
             ImmGetCompositionStringW(context, GCS_RESULTSTR, result.data(), bytes);
-            query_ += result;
+            composition_.clear();
+            InsertText(result);
         }
-        composition_.clear();
-        UpdateQuery();
+        else
+        {
+            composition_.clear();
+            UpdateQuery();
+        }
     }
     if (flags & GCS_COMPSTR)
     {
@@ -1444,4 +1582,223 @@ void MainWindow::DrawAbout(const Layout& layout)
     painter_.FillRound(layout.dialogOk, 4.0f, theme_.accent);
     painter_.Text(i18n::T(L"about.ok"), painter_.Format(13.0f, DWRITE_FONT_WEIGHT_SEMI_BOLD), layout.dialogOk,
                   theme_.onAccent, DWRITE_TEXT_ALIGNMENT_CENTER);
+}
+namespace {
+
+bool WriteClipboardText(HWND hwnd, const std::wstring& text)
+{
+    if (text.empty()) return false;
+    if (!OpenClipboard(hwnd)) return false;
+
+    bool ok = false;
+    if (EmptyClipboard())
+    {
+        size_t bytes = (text.size() + 1) * sizeof(wchar_t);
+        HGLOBAL memory = GlobalAlloc(GMEM_MOVEABLE, bytes);
+        if (memory)
+        {
+            void* target = GlobalLock(memory);
+            if (target)
+            {
+                memcpy(target, text.c_str(), bytes);
+                GlobalUnlock(memory);
+                if (SetClipboardData(CF_UNICODETEXT, memory))
+                    ok = true;
+                else
+                    GlobalFree(memory);
+            }
+            else
+            {
+                GlobalFree(memory);
+            }
+        }
+    }
+    CloseClipboard();
+    return ok;
+}
+
+std::wstring ReadClipboardText(HWND hwnd)
+{
+    if (!IsClipboardFormatAvailable(CF_UNICODETEXT) || !OpenClipboard(hwnd)) return {};
+
+    std::wstring text;
+    if (HANDLE data = GetClipboardData(CF_UNICODETEXT))
+    {
+        if (const wchar_t* source = static_cast<const wchar_t*>(GlobalLock(data)))
+        {
+            text = source;
+            GlobalUnlock(data);
+        }
+    }
+    CloseClipboard();
+
+    // A search box is a single line: fold line breaks and tabs into spaces.
+    std::wstring cleaned;
+    cleaned.reserve(text.size());
+    for (wchar_t ch : text)
+    {
+        if (ch == L'\r' || ch == L'\n' || ch == L'\t')
+        {
+            if (!cleaned.empty() && cleaned.back() != L' ') cleaned.push_back(L' ');
+        }
+        else
+        {
+            cleaned.push_back(ch);
+        }
+    }
+    while (!cleaned.empty() && cleaned.back() == L' ') cleaned.pop_back();
+    size_t start = 0;
+    while (start < cleaned.size() && cleaned[start] == L' ') ++start;
+    return cleaned.substr(start);
+}
+
+}  // namespace
+
+std::wstring MainWindow::SelectedText() const
+{
+    size_t from = std::min(caret_, anchor_);
+    size_t to = std::max(caret_, anchor_);
+    if (from >= query_.size()) return {};
+    if (to > query_.size()) to = query_.size();
+    return query_.substr(from, to - from);
+}
+
+void MainWindow::ClampCaret()
+{
+    if (caret_ > query_.size()) caret_ = query_.size();
+    if (anchor_ > query_.size()) anchor_ = query_.size();
+}
+
+void MainWindow::DeleteSelection()
+{
+    if (!HasSelection()) return;
+    size_t from = std::min(caret_, anchor_);
+    size_t to = std::max(caret_, anchor_);
+    query_.erase(from, to - from);
+    caret_ = anchor_ = from;
+    caretVisible_ = true;
+    UpdateQuery();
+}
+
+void MainWindow::InsertText(const std::wstring& text)
+{
+    if (text.empty()) return;
+    size_t from = std::min(caret_, anchor_);
+    size_t to = std::max(caret_, anchor_);
+    query_.erase(from, to - from);
+    query_.insert(from, text);
+    caret_ = anchor_ = from + text.size();
+    caretVisible_ = true;
+    UpdateQuery();
+    UpdateImePosition();
+}
+
+void MainWindow::CopySelection(bool cut)
+{
+    std::wstring text = HasSelection() ? SelectedText() : query_;
+    if (text.empty()) return;
+    if (!WriteClipboardText(hwnd_, text)) return;
+    if (cut && HasSelection()) DeleteSelection();
+}
+
+void MainWindow::PasteFromClipboard()
+{
+    std::wstring text = ReadClipboardText(hwnd_);
+    if (!text.empty()) InsertText(text);
+}
+
+size_t MainWindow::CaretFromX(float x, const Layout& layout)
+{
+    IDWriteTextFormat* format = painter_.Format(13.0f, DWRITE_FONT_WEIGHT_NORMAL);
+    const float left = layout.searchText.left;
+    size_t best = 0;
+    float bestDistance = 1.0e9f;
+    for (size_t i = 0; i <= query_.size(); ++i)
+    {
+        float width = painter_.TextWidth(query_.substr(0, i), format);
+        float distance = std::fabs(left + width - x);
+        if (distance < bestDistance)
+        {
+            bestDistance = distance;
+            best = i;
+        }
+    }
+    return best;
+}
+
+void MainWindow::OnRightClick(int x, int y)
+{
+    if (aboutOpen_) return;
+
+    float fx = static_cast<float>(x) / scale_;
+    float fy = static_cast<float>(y) / scale_;
+    Layout layout = ComputeLayout();
+    if (!ContainsPoint(layout.search, fx, fy)) return;
+
+    if (!searchFocused_) SetSearchFocus(true);
+
+    size_t position = CaretFromX(fx, layout);
+    if (!HasSelection() || position < std::min(caret_, anchor_) || position > std::max(caret_, anchor_))
+    {
+        caret_ = position;
+        anchor_ = position;
+    }
+    Invalidate();
+    ShowSearchMenu();
+}
+
+void MainWindow::ShowSearchMenu()
+{
+    const bool hasSelection = HasSelection();
+    const bool hasText = !query_.empty();
+    const bool canPaste = IsClipboardFormatAvailable(CF_UNICODETEXT) != FALSE;
+
+    HMENU menu = CreatePopupMenu();
+    AppendMenuW(menu, MF_STRING | (hasSelection ? 0 : MF_GRAYED), 1201, i18n::T(L"edit.cut"));
+    AppendMenuW(menu, MF_STRING | ((hasSelection || hasText) ? 0 : MF_GRAYED), 1202, i18n::T(L"edit.copy"));
+    AppendMenuW(menu, MF_STRING | (canPaste ? 0 : MF_GRAYED), 1203, i18n::T(L"edit.paste"));
+    AppendMenuW(menu, MF_SEPARATOR, 0, nullptr);
+    AppendMenuW(menu, MF_STRING | (hasText ? 0 : MF_GRAYED), 1204, i18n::T(L"edit.select_all"));
+    AppendMenuW(menu, MF_STRING | (hasText ? 0 : MF_GRAYED), 1205, i18n::T(L"edit.clear"));
+
+    POINT point{};
+    GetCursorPos(&point);
+    SetForegroundWindow(hwnd_);
+    int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd_, nullptr);
+    DestroyMenu(menu);
+    PostMessage(hwnd_, WM_NULL, 0, 0);
+
+    switch (command)
+    {
+    case 1201:
+        CopySelection(true);
+        break;
+    case 1202:
+        CopySelection(false);
+        break;
+    case 1203:
+        PasteFromClipboard();
+        break;
+    case 1204:
+        anchor_ = 0;
+        caret_ = query_.size();
+        Invalidate();
+        break;
+    case 1205:
+        query_.clear();
+        caret_ = anchor_ = 0;
+        UpdateQuery();
+        break;
+    default:
+        break;
+    }
+}
+void MainWindow::SetPreviewQuery(const std::wstring& text)
+{
+    query_ = text;
+    anchor_ = 0;
+    caret_ = text.size();
+    searchFocused_ = true;
+    caretVisible_ = true;
+    UpdateQuery();
 }
