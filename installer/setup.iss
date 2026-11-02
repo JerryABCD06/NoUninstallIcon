@@ -57,11 +57,9 @@ Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: deskto
 [Run]
 Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
 
-; Ask the application to remove its sign-in task and to give every managed
-; shortcut its original attributes back before the files are deleted.
-[UninstallRun]
-Filename: "{app}\{#AppExeName}"; Parameters: "--cleanup"; Flags: runhidden waituntilterminated; RunOnceId: "Cleanup"
-
+; The cleanup step runs from [Code] rather than [UninstallRun] so that a failure
+; is visible: a silent failure would delete the program with shortcuts still
+; hidden and a sign-in task still installed.
 [UninstallDelete]
 Type: filesandordirs; Name: "{app}"
 
@@ -69,4 +67,22 @@ Type: filesandordirs; Name: "{app}"
 function InitializeSetup(): Boolean;
 begin
   Result := True;
+end;
+
+procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
+var
+  ResultCode: Integer;
+begin
+  if CurUninstallStep = usUninstall then
+  begin
+    if not FileExists(ExpandConstant('{app}\{#AppExeName}')) then
+      Exit;
+    if not Exec(ExpandConstant('{app}\{#AppExeName}'), '--cleanup', '', SW_HIDE,
+                ewWaitUntilTerminated, ResultCode) then
+      MsgBox('The cleanup step could not be started. Some Start menu entries may stay hidden.',
+             mbError, MB_OK)
+    else if ResultCode <> 0 then
+      MsgBox('The cleanup step reported a problem (code ' + IntToStr(ResultCode) +
+             '). Some Start menu entries may still be hidden.', mbError, MB_OK);
+  end;
 end;

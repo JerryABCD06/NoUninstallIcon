@@ -145,12 +145,19 @@ void App::HandleToggle(int itemIndex, bool hidden)
             {
                 // The file did not take it, so put the attribute back: a hidden
                 // shortcut with no record is exactly what this tool must not leave.
-                SetShortcutHidden(item.path, (attributes & FILE_ATTRIBUTE_HIDDEN) != 0);
-                if (created) store_.Erase(item.key);
-                item.managed = false;
-                item.desiredHidden = false;
-                item.hiddenOnDisk = (attributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+                // If even that fails, keep the record so the shortcut can still be
+                // found and released later.
+                const bool wasHidden = (attributes & FILE_ATTRIBUTE_HIDDEN) != 0;
+                const ApplyStatus undone = SetShortcutHidden(item.path, wasHidden);
+                const bool stillManaged = (undone != ApplyStatus::Ok);
+                if (!stillManaged && created) store_.Erase(item.key);
+                item.managed = stillManaged;
+                item.desiredHidden = stillManaged;
+                item.hiddenOnDisk = stillManaged ? true : wasHidden;
+                last_.valid = false;
                 NotifyShellItem(item.path);
+                MergeRecords();
+                window_.ModelChanged();
                 ShowToast(i18n::T(L"error.store"), false);
                 return;
             }
@@ -180,11 +187,18 @@ void App::HandleToggle(int itemIndex, bool hidden)
             NotifyShellItem(item.path);
             if (!store_.Save())
             {
-                // Put the record back: without it the shortcut is managed by
-                // nobody, and the next apply would hide it again behind our back.
-                StoredRecord& back = store_.Ensure(forgotten.key);
-                back = forgotten;
-                back.desiredHidden = false;
+                // The disk still says "hidden", so put the attribute back instead
+                // of leaving a visible file that the next apply would hide again.
+                if (!forgotten.key.empty())
+                {
+                    StoredRecord& back = store_.Ensure(forgotten.key);
+                    back = forgotten;
+                }
+                SetShortcutHidden(item.path, true);
+                NotifyShellItem(item.path);
+                last_.valid = false;
+                MergeRecords();
+                window_.ModelChanged();
                 ShowToast(i18n::T(L"error.store"), false);
                 return;
             }
@@ -218,6 +232,7 @@ void App::HandleRestoreAll()
     MergeRecords();  // and the list has to show what the file now says
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
+    std::vector<std::wstring> restoredPaths;
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
@@ -225,14 +240,27 @@ void App::HandleRestoreAll()
         {
             NotifyShellItem(record.path);
             restoredKeys.push_back(record.key);
+            restoredPaths.push_back(record.path);
             ++restored;
         }
     }
     // Only forget the ones that really came back: a failed restore must stay
     // fixable instead of leaving a hidden shortcut nobody manages.
+    const std::vector<StoredRecord> beforeRecords = store_.Records();
     for (const auto& key : restoredKeys) store_.Erase(key);
     if (!store_.Save())
     {
+        // The disk still says these are hidden, so undo the restore instead of
+        // letting the watcher quietly put them back with no gesture from the user.
+        for (const auto& path : restoredPaths)
+        {
+            SetShortcutHidden(path, true);
+            NotifyShellItem(path);
+        }
+        store_.Records() = beforeRecords;
+        last_.valid = false;
+        MergeRecords();
+        window_.ModelChanged();
         ShowToast(i18n::T(L"error.store"), false);
         return;
     }
@@ -252,6 +280,11 @@ void App::HandleHideGroup(bool hide)
     }
     store_.Load();  // the file, not our memory, is the truth
     MergeRecords();  // and the list has to show what the file now says
+    // A group change is one transaction: keep enough to undo all of it.
+    const std::vector<StoredRecord> beforeRecords = store_.Records();
+    struct GroupUndo { std::wstring path; bool wasHidden; };
+    std::vector<GroupUndo> undo;
+
     int changed = 0;
     std::vector<std::wstring> touched;
     // Act on what the list is showing: the header count is the filtered count,
@@ -285,6 +318,7 @@ void App::HandleHideGroup(bool hide)
                 item.managed = true;
                 item.desiredHidden = true;
                 item.hiddenOnDisk = true;
+                undo.push_back({item.path, (attributes & FILE_ATTRIBUTE_HIDDEN) != 0});
                 NotifyShellItem(item.path);
                 touched.push_back(item.key);
                 ++changed;
@@ -306,6 +340,7 @@ void App::HandleHideGroup(bool hide)
                 item.managed = false;
                 item.desiredHidden = false;
                 item.hiddenOnDisk = originallyHidden;
+                undo.push_back({item.path, originallyHidden});
                 NotifyShellItem(item.path);
                 touched.push_back(item.key);
                 ++changed;
@@ -314,6 +349,17 @@ void App::HandleHideGroup(bool hide)
     }
     if (!store_.Save())
     {
+        // Undo the attributes in reverse, then put the records back as they were:
+        // a failed batch must not leave hidden shortcuts nobody manages.
+        for (auto it = undo.rbegin(); it != undo.rend(); ++it)
+        {
+            SetShortcutHidden(it->path, it->wasHidden);
+            NotifyShellItem(it->path);
+        }
+        store_.Records() = beforeRecords;
+        last_.valid = false;
+        MergeRecords();
+        window_.ModelChanged();
         ShowToast(i18n::T(L"error.store"), false);
         return;
     }
@@ -442,10 +488,23 @@ int App::RunGui(int showCommand)
         }
         {
             StateLock stateGuard;
-            if (!stateGuard.held()) return;
+            if (!stateGuard.held())
+            {
+                // The task may have changed, but the setting was not recorded, so
+                // do not publish a mode that will not survive the next launch.
+                window_.ShowToast(i18n::T(L"error.store"), false);
+                return;
+            }
             store_.Load();
             store_.Settings().autostart = mode;
-            if (!store_.Save()) LogLine(L"autostart: could not be saved");
+            if (!store_.Save())
+            {
+                LogLine(L"autostart: could not be saved, keeping the stored mode");
+                store_.Load();  // back to what the file actually says
+                window_.SetAutostartMode(store_.Settings().autostart);
+                window_.ShowToast(i18n::T(L"error.store"), false);
+                return;
+            }
         }
         window_.SetAutostartMode(mode);
         // Tell the watcher what it should be. It adjusts its own icon and exits
@@ -566,6 +625,7 @@ int App::RunRestoreAll()
     MergeRecords();  // and the list has to show what the file now says
     int restored = 0;
     std::vector<std::wstring> restoredKeys;
+    std::vector<std::wstring> restoredPaths;
     for (auto& record : store_.Records())
     {
         bool originallyHidden = (record.originalAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
@@ -573,15 +633,25 @@ int App::RunRestoreAll()
         {
             NotifyShellItem(record.path);
             restoredKeys.push_back(record.key);
+            restoredPaths.push_back(record.path);
             ++restored;
         }
     }
     // Only forget the ones that really came back: a failed restore must stay
     // fixable instead of leaving a hidden shortcut nobody manages.
+    const std::vector<StoredRecord> beforeRecords = store_.Records();
     for (const auto& key : restoredKeys) store_.Erase(key);
     if (!store_.Save())
     {
-        LogLine(L"Restore all could not be recorded");
+        // The file still says these are hidden, so undo the restore: otherwise
+        // the next apply hides them again with no gesture from the user.
+        for (const auto& path : restoredPaths)
+        {
+            SetShortcutHidden(path, true);
+            NotifyShellItem(path);
+        }
+        store_.Records() = beforeRecords;
+        LogLine(L"Restore all could not be recorded, undoing it");
         return 1;
     }
     LogLineF(L"Restore all finished, %d shortcut(s) restored", restored);
@@ -660,18 +730,21 @@ int App::RunCleanup()
     // and wait for it to go, so it cannot re-hide shortcuts during the restore.
     // Persist Off as well: cleanup runs before the uninstaller deletes the
     // executable, and a stored Watch would recreate the task on a later launch.
+    // A failure here is reported at the end, never as an early exit: the restore
+    // still has to happen even when the mode could not be written down.
+    bool offSaved = false;
     {
         StateLock stateGuard;  // released before waiting for the watcher
-        if (!stateGuard.held()) LogLine(L"cleanup: state lock unavailable");
+        if (!stateGuard.held())
+        {
+            LogLine(L"cleanup: state lock unavailable, skipping the off marker");
+        }
         else
         {
             store_.Load();
             store_.Settings().autostart = AutostartMode::Off;
-            if (!store_.Save())
-            {
-                LogLine(L"cleanup: the off mode could not be recorded");
-                return 1;
-            }
+            offSaved = store_.Save();
+            if (!offSaved) LogLine(L"cleanup: the off mode could not be recorded");
         }
     }
 
@@ -684,8 +757,10 @@ int App::RunCleanup()
         Sleep(100);
     }
 
-    if (!RemoveAutostart()) LogLine(L"cleanup: could not remove the task");
-    return RunRestoreAll();
+    const bool taskRemoved = RemoveAutostart();
+    if (!taskRemoved) LogLine(L"cleanup: could not remove the task");
+    const int restore = RunRestoreAll();
+    return (offSaved && taskRemoved && restore == 0) ? 0 : 1;
 }
 
 int App::RunWatch(bool showTray)
