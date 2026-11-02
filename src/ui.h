@@ -204,6 +204,7 @@ private:
     std::wstring toastText_;
     bool aboutOpen_ = false;
     bool aboutFocusLink_ = false;
+    bool aboutTabbed_ = false;
     FocusTarget focus_ = FocusTarget::Search;
     int lastAnnouncedGroup_ = -1;
     bool publishedAbout_ = false;

@@ -1227,6 +1227,7 @@ void MainWindow::OnLeftDown(int x, int y)
         SetFocusTarget(FocusTarget::About);
         aboutOpen_ = true;
         aboutFocusLink_ = false;
+        aboutTabbed_ = false;
         Invalidate();
         return;
     }
@@ -1344,7 +1345,11 @@ void MainWindow::OnKeyDown(WPARAM key)
         else if (key == VK_TAB)
         {
             aboutFocusLink_ = !aboutFocusLink_;
+            aboutTabbed_ = true;
             Invalidate();
+            PublishAccessibility(ComputeLayout());
+            a11y::NotifyFocus(aboutFocusLink_ ? a11y::Element::DialogLink : a11y::Element::DialogOk);
+            return;
         }
         else if (key == VK_RETURN || key == VK_SPACE)
         {
@@ -1412,6 +1417,7 @@ void MainWindow::OnKeyDown(WPARAM key)
         {
             aboutOpen_ = true;
             aboutFocusLink_ = false;
+            aboutTabbed_ = false;
             Invalidate();
         }
         return;
@@ -2332,10 +2338,13 @@ void MainWindow::PublishAccessibility(const Layout& layout)
 
         a11y::SnapshotElement dialog;
         dialog.id = a11y::Element::Dialog;
-        dialog.name = i18n::T(L"a11y.aboutDialog");
+        // One utterance on entry: the page name and its body. A focused element
+        // whose HasKeyboardFocus is false is ignored by screen readers, so this
+        // one has to own the focus.
+        dialog.name = std::wstring(i18n::T(L"a11y.aboutDialog")) + L"\u3002" + i18n::T(L"a11y.aboutBody");
         dialog.bounds = toScreen(card);
         dialog.controlType = UIA_PaneControlTypeId;
-        dialog.focused = false;
+        dialog.focused = !aboutTabbed_;
         elements.push_back(dialog);
 
         a11y::SnapshotElement body;
@@ -2344,6 +2353,7 @@ void MainWindow::PublishAccessibility(const Layout& layout)
         body.bounds = toScreen(Rect(card.left + kPad, card.top + 60.0f, card.right - kPad, card.top + 140.0f));
         body.controlType = UIA_TextControlTypeId;
         body.focusable = true;
+        body.focused = false;
         elements.push_back(body);
 
         a11y::SnapshotElement link;
@@ -2352,6 +2362,7 @@ void MainWindow::PublishAccessibility(const Layout& layout)
         link.bounds = toScreen(Rect(card.left + kPad, card.top + 118.0f, card.right - kPad, card.top + 162.0f));
         link.controlType = UIA_HyperlinkControlTypeId;
         link.focusable = true;
+        link.focused = aboutTabbed_ && aboutFocusLink_;
         elements.push_back(link);
 
         a11y::SnapshotElement ok;
@@ -2359,7 +2370,7 @@ void MainWindow::PublishAccessibility(const Layout& layout)
         ok.name = i18n::T(L"about.ok");
         ok.bounds = toScreen(layout.dialogOk);
         ok.controlType = UIA_ButtonControlTypeId;
-        ok.focused = !aboutFocusLink_;
+        ok.focused = aboutTabbed_ && !aboutFocusLink_;
         elements.push_back(ok);
 
         a11y::Publish(elements);
@@ -2385,6 +2396,12 @@ void MainWindow::PublishAccessibility(const Layout& layout)
     }
     add(a11y::Element::List, listName.c_str(), layout.list, UIA_ListControlTypeId,
         listEmpty && focus_ == FocusTarget::List);
+    if (listEmpty)
+    {
+        // Same trick as the rows: a new runtime id per message so the reader
+        // speaks it again instead of treating it as the element already read.
+        elements.back().identity = static_cast<long long>(std::hash<std::wstring>{}(listName) & 0x7FFFFFFF);
+    }
 
     // The focused row is its own UIA element; materialising all 300+ rows would
     // make the tree far too heavy, so only the current one exists.
