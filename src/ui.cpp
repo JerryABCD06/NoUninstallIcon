@@ -2259,7 +2259,25 @@ void MainWindow::ShowContextMenu(int rowIndex, bool fromKeyboard)
     AppendMenuW(menu, MF_STRING | (hasTarget ? 0 : MF_GRAYED), 1303, i18n::T(L"menu.open_target"));
 
     POINT point{};
-    GetCursorPos(&point);
+    if (fromKeyboard)
+    {
+        // Anchor to the focused row rather than wherever the pointer is.
+        Layout layout = ComputeLayout();
+        float top = layout.list.top + 8.0f;
+        for (const Entry& entry : entries_)
+        {
+            if (entry.header || entry.value != focusRow_) continue;
+            top = layout.list.top + entry.top - scroll_;
+            break;
+        }
+        point.x = static_cast<LONG>(layout.list.left * scale_);
+        point.y = static_cast<LONG>(top * scale_);
+        ClientToScreen(hwnd_, &point);
+    }
+    else
+    {
+        GetCursorPos(&point);
+    }
     SetForegroundWindow(hwnd_);
     int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd_, nullptr);
     DestroyMenu(menu);
