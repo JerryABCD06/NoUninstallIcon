@@ -102,3 +102,4 @@ menu.open_shortcut=ショートカットの場所を開く
 menu.open_target=リンク先の場所を開く
 autostart.portable_note=ポータブル モード: このフォルダ外にサインイン タスクを作成します
 toast.watchOn=インストールなどでアイコンが復活すると、すぐに監視して再び非表示にします。Windows またはこのツールの再起動後に有効になります。
+toast.onceOn=サインインのたびに 1 回だけ非表示にして終了します。

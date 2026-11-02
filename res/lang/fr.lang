@@ -107,3 +107,4 @@ menu.open_target=Ouvrir l'emplacement de la cible
 
 autostart.portable_note=Mode portable : crée une tâche d'ouverture de session hors de ce dossier
 toast.watchOn=Surveille et masque à nouveau les icônes dès qu'une installation les rétablit. Prend effet après un redémarrage de Windows ou de cet outil.
+toast.onceOn=Masque une fois à chaque ouverture de session, puis se ferme.

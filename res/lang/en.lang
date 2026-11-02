@@ -102,3 +102,4 @@ menu.open_shortcut=Open shortcut location
 menu.open_target=Open target location
 autostart.portable_note=Portable mode: creates a sign-in task outside this folder
 toast.watchOn=Watches and hides icons again as soon as an installer brings them back. Takes effect after a restart of Windows or of this tool.
+toast.onceOn=Hides once each time you sign in, then exits.

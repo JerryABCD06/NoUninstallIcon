@@ -107,3 +107,4 @@ menu.open_target=Speicherort des Ziels öffnen
 
 autostart.portable_note=Portabler Modus: legt eine Anmeldeaufgabe außerhalb dieses Ordners an
 toast.watchOn=Überwacht und versteckt Symbole sofort wieder, wenn eine Installation sie zurücksetzt. Wirkt nach einem Neustart von Windows oder dieses Werkzeugs.
+toast.onceOn=Blendet bei jeder Anmeldung einmal aus und beendet sich danach.
