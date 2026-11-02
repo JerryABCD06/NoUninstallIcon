@@ -206,6 +206,7 @@ private:
     bool aboutFocusLink_ = false;
     FocusTarget focus_ = FocusTarget::Search;
     int lastAnnouncedGroup_ = -1;
+    bool publishedAbout_ = false;
     float previewScroll_ = -1.0f;
     bool focusRingVisible_ = false;
 

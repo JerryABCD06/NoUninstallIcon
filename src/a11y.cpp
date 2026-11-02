@@ -200,7 +200,9 @@ public:
         *retVal = nullptr;
 
         const int index = static_cast<int>(id_);
-        const int lastRootChild = static_cast<int>(Element::List);
+        const int lastRootChild = static_cast<int>(Element::Dialog);
+        const int firstDialogChild = static_cast<int>(Element::DialogText);
+        const int lastDialogChild = static_cast<int>(Element::DialogOk);
         int target = -1;
 
         // Skip ids that are not in the published snapshot: an action button can
@@ -218,6 +220,8 @@ public:
         case NavigateDirection_Parent:
             if (index == static_cast<int>(Element::ListRow))
                 target = static_cast<int>(Element::List);
+            else if (index >= firstDialogChild && index <= lastDialogChild)
+                target = static_cast<int>(Element::Dialog);
             else if (index == 0)
                 target = -1;
             else
@@ -233,6 +237,11 @@ public:
             {
                 target = static_cast<int>(Element::ListRow);
             }
+            else if (index == static_cast<int>(Element::Dialog))
+            {
+                for (int i = firstDialogChild; i <= lastDialogChild && target < 0; ++i)
+                    if (exists(i)) target = i;
+            }
             break;
         case NavigateDirection_LastChild:
             if (index == 0)
@@ -244,14 +253,25 @@ public:
             {
                 target = static_cast<int>(Element::ListRow);
             }
+            else if (index == static_cast<int>(Element::Dialog))
+            {
+                for (int i = lastDialogChild; i >= firstDialogChild && target < 0; --i)
+                    if (exists(i)) target = i;
+            }
             break;
         case NavigateDirection_NextSibling:
-            if (index > 0 && index < lastRootChild)
+            if (index >= firstDialogChild && index < lastDialogChild)
+                for (int i = index + 1; i <= lastDialogChild && target < 0; ++i)
+                    if (exists(i)) target = i;
+            else if (index > 0 && index < lastRootChild)
                 for (int i = index + 1; i <= lastRootChild && target < 0; ++i)
                     if (exists(i)) target = i;
             break;
         case NavigateDirection_PreviousSibling:
-            if (index > 1 && index <= lastRootChild)
+            if (index > firstDialogChild && index <= lastDialogChild)
+                for (int i = index - 1; i >= firstDialogChild && target < 0; --i)
+                    if (exists(i)) target = i;
+            else if (index > 1 && index <= lastRootChild)
                 for (int i = index - 1; i >= 1 && target < 0; --i)
                     if (exists(i)) target = i;
             break;

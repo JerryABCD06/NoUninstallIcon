@@ -91,3 +91,6 @@ a11y.rowGrouped={0}，{1}，{2}
 a11y.announce.hidden=已隱藏 {0}，它不會再出現在開始功能表中。
 a11y.announce.shown=已顯示 {0}，它會重新出現在開始功能表中。
 a11y.announce.stillHidden=本工具不再隱藏 {0}，但它仍被其他方式隱藏。
+a11y.aboutDialog=關於
+a11y.aboutBody=本軟體是自由軟體。本軟體採用 MIT 授權條款發布。作者：王雲正。
+a11y.aboutLink=開啟作者首頁：github.com/JerryABCD06

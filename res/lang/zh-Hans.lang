@@ -91,3 +91,6 @@ a11y.rowGrouped={0}，{1}，{2}
 a11y.announce.hidden=已隐藏 {0}，它不会再出现在开始菜单中。
 a11y.announce.shown=已显示 {0}，它会重新出现在开始菜单中。
 a11y.announce.stillHidden=本工具不再隐藏 {0}，但它仍被其他方式隐藏。
+a11y.aboutDialog=关于
+a11y.aboutBody=本软件是自由软件。本软件采用 MIT 许可证发布。作者：王云正。
+a11y.aboutLink=打开作者主页：github.com/JerryABCD06

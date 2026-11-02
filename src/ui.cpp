@@ -2321,7 +2321,70 @@ void MainWindow::PublishAccessibility(const Layout& layout)
     add(a11y::Element::About, i18n::T(L"a11y.about"), layout.aboutButton, UIA_ButtonControlTypeId,
         focus_ == FocusTarget::About);
 
-    add(a11y::Element::List, i18n::T(L"a11y.list"), layout.list, UIA_ListControlTypeId, false);
+    if (aboutOpen_)
+    {
+        // Only the dialog is exposed while it is open; the window behind it is
+        // not reachable.
+        elements.clear();
+        elements.push_back(root);
+
+        const D2D1_RECT_F card = layout.dialogCard;
+
+        a11y::SnapshotElement dialog;
+        dialog.id = a11y::Element::Dialog;
+        dialog.name = i18n::T(L"a11y.aboutDialog");
+        dialog.bounds = toScreen(card);
+        dialog.controlType = UIA_PaneControlTypeId;
+        dialog.focused = false;
+        elements.push_back(dialog);
+
+        a11y::SnapshotElement body;
+        body.id = a11y::Element::DialogText;
+        body.name = i18n::T(L"a11y.aboutBody");
+        body.bounds = toScreen(Rect(card.left + kPad, card.top + 60.0f, card.right - kPad, card.top + 140.0f));
+        body.controlType = UIA_TextControlTypeId;
+        body.focusable = true;
+        elements.push_back(body);
+
+        a11y::SnapshotElement link;
+        link.id = a11y::Element::DialogLink;
+        link.name = i18n::T(L"a11y.aboutLink");
+        link.bounds = toScreen(Rect(card.left + kPad, card.top + 118.0f, card.right - kPad, card.top + 162.0f));
+        link.controlType = UIA_HyperlinkControlTypeId;
+        link.focusable = true;
+        elements.push_back(link);
+
+        a11y::SnapshotElement ok;
+        ok.id = a11y::Element::DialogOk;
+        ok.name = i18n::T(L"about.ok");
+        ok.bounds = toScreen(layout.dialogOk);
+        ok.controlType = UIA_ButtonControlTypeId;
+        ok.focused = !aboutFocusLink_;
+        elements.push_back(ok);
+
+        a11y::Publish(elements);
+        if (!publishedAbout_)
+        {
+            publishedAbout_ = true;
+            a11y::NotifyFocus(a11y::Element::Dialog);
+        }
+        return;
+    }
+
+    if (publishedAbout_)
+    {
+        publishedAbout_ = false;
+        a11y::NotifyFocus(a11y::Element::About);
+    }
+
+    const bool listEmpty = !model_ || model_->RowCount() == 0;
+    std::wstring listName = i18n::T(L"a11y.list");
+    if (listEmpty && focus_ == FocusTarget::List)
+    {
+        listName = query_.empty() ? i18n::T(L"status.empty") : i18n::Tf(L"empty.search", {query_});
+    }
+    add(a11y::Element::List, listName.c_str(), layout.list, UIA_ListControlTypeId,
+        listEmpty && focus_ == FocusTarget::List);
 
     // The focused row is its own UIA element; materialising all 300+ rows would
     // make the tree far too heavy, so only the current one exists.

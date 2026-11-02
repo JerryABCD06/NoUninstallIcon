@@ -91,3 +91,6 @@ a11y.rowGrouped={0}、{1}、{2}
 a11y.announce.hidden={0} を非表示にしました。スタート メニューに表示されなくなります。
 a11y.announce.shown={0} を表示しました。スタート メニューに再び表示されます。
 a11y.announce.stillHidden=このツールは {0} を隠さなくなりましたが、他の方法で非表示のままです。
+a11y.aboutDialog=このアプリについて
+a11y.aboutBody=本ソフトウェアは自由ソフトウェアです。MIT ライセンスで公開されています。作者：王雲正。
+a11y.aboutLink=作者のページを開く：github.com/JerryABCD06

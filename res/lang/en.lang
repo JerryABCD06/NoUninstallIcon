@@ -91,3 +91,6 @@ a11y.rowGrouped={0}, {1}, {2}
 a11y.announce.hidden=Hidden {0}. It no longer appears in the Start menu.
 a11y.announce.shown=Showing {0}. It appears in the Start menu again.
 a11y.announce.stillHidden=This tool no longer hides {0}, but something else still does.
+a11y.aboutDialog=About
+a11y.aboutBody=This is free software. It is released under the MIT License. Author: Wang Yunzheng.
+a11y.aboutLink=Open the author profile: github.com/JerryABCD06

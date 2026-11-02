@@ -19,6 +19,10 @@ enum class Element
     About,
     List,
     ListRow,
+    Dialog,
+    DialogText,
+    DialogLink,
+    DialogOk,
 };
 
 struct SnapshotElement

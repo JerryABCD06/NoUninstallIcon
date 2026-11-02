@@ -83,7 +83,7 @@ int wmain(int argc, wchar_t** argv)
 
         CONTROLTYPEID kind = 0;
         child->get_CurrentControlType(&kind);
-        if (kind == UIA_ListControlTypeId)
+        if (kind == UIA_ListControlTypeId || kind == UIA_PaneControlTypeId)
         {
             IUIAutomationElementArray* grandchildren = nullptr;
             child->FindAll(TreeScope_Children, condition, &grandchildren);
