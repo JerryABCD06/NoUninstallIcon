@@ -45,6 +45,9 @@ public:
     void ApplyTheme();
     void SetAutostartMode(AutostartMode mode);
     AutostartMode GetAutostartMode() const { return autostart_; }
+    // Applies a language without notifying the owner, for rolling back a change
+    // that could not be saved.
+    void SetLanguageQuiet(const std::wstring& code);
     void SetLoading(bool loading);
     void ShowToast(const std::wstring& text, bool undoable);
     void Invalidate() const;

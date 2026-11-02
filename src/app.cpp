@@ -485,13 +485,21 @@ int App::RunGui(int showCommand)
     window_.callbacks.autostartChanged = [this](AutostartMode mode) { HandleAutostart(mode); };
     window_.callbacks.languageChanged = [this](const std::wstring& code) {
         StateLock stateGuard;
-        if (!stateGuard.held()) return;
+        if (!stateGuard.held())
+        {
+            window_.ShowToast(i18n::T(L"error.store"), false);
+            return;
+        }
         store_.Load();  // a concurrent restore may have changed the file
+        const std::wstring previous = store_.Settings().language;
         store_.Settings().language = code;
-        if (!store_.Save()) LogLine(L"language: could not be saved");
+        if (store_.Save()) return;
+        // The language changed in the session but will not survive a restart:
+        // say so and put the interface back to what the file actually says.
+        LogLine(L"language: could not be saved, restoring the stored one");
+        window_.SetLanguageQuiet(previous);
+        window_.ShowToast(i18n::T(L"error.store"), false);
     };
-    window_.callbacks.undo = [this]() { HandleUndo(); };
-    window_.callbacks.openLocation = [this](int index) { HandleOpenLocation(index); };
     window_.callbacks.scanDone = [this]() { FinishScan(); };
     window_.callbacks.autostartDone = [this](bool ok, AutostartMode mode) {
         if (!ok)

@@ -1696,6 +1696,18 @@ void MainWindow::CycleLanguage(int delta)
     ApplyLanguage(languages[index].code);
 }
 
+void MainWindow::SetLanguageQuiet(const std::wstring& code)
+{
+    if (!i18n::SetLanguage(code)) return;
+    RefreshText();
+    if (model_)
+    {
+        model_->Recompute();
+        RebuildDisplay();
+    }
+    Invalidate();
+}
+
 void MainWindow::ApplyLanguage(const std::wstring& code)
 {
     if (!i18n::SetLanguage(code)) return;
