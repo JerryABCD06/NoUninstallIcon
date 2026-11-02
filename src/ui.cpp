@@ -178,11 +178,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wparam));
         return 0;
     case WM_KEYDOWN:
-        LogLineF(L"key: down vk=%02X focus=%d", static_cast<unsigned>(wparam), static_cast<int>(focus_));
+        if (gKeyLog || wparam == VK_APPS || wparam == VK_F10) LogLineF(L"key: down vk=%02X focus=%d", static_cast<unsigned>(wparam), static_cast<int>(focus_));
         OnKeyDown(wparam);
         return 0;
     case WM_SYSKEYDOWN:
-        LogLineF(L"key: sys  vk=%02X focus=%d", static_cast<unsigned>(wparam), static_cast<int>(focus_));
+        if (gKeyLog || wparam == VK_APPS || wparam == VK_F10) LogLineF(L"key: sys  vk=%02X focus=%d", static_cast<unsigned>(wparam), static_cast<int>(focus_));
         // F10 and the menu key can arrive as system keys when modified.
         if (wparam == VK_F10 || wparam == VK_APPS)
         {
@@ -194,6 +194,7 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         OnChar(static_cast<wchar_t>(wparam));
         return 0;
     case WM_CONTEXTMENU:
+        LogLineF(L"key: ctxmenu focus=%d lparam=%ld", static_cast<int>(focus_), static_cast<long>(static_cast<INT_PTR>(lparam)));
         // DefWindowProc turns a menu key it does not recognise into this, which
         // is how the touch keyboard delivers it.
         ShowContextForFocus();
