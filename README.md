@@ -156,3 +156,9 @@ card dismisses it.
 ## Licence
 
 MIT. Copyright (c) 2026 王云正 (JerryABCD06). See [LICENSE](LICENSE).
+## If it crashes
+
+The program installs a top-level exception filter. On an unhandled exception it
+writes `crash-YYYYMMDD-HHMMSS.dmp` plus `crash.txt` (exception code and faulting
+address) next to `state.dat`, then exits. Attach the dump when reporting a problem —
+it is the only way to tell a threading bug from a drawing bug.
