@@ -50,6 +50,7 @@ hint.keys=Leertaste schaltet um · Eingabetaste öffnet den Speicherort
 error.elevation=Zum Ändern systemweiter Verknüpfungen sind Administratorrechte nötig.
 error.store=Die Zustandsdatei konnte nicht geschrieben werden.
 error.task=Die Anmeldeaufgabe konnte nicht erstellt werden.
+error.watcher=Der Hintergrundwächter konnte nicht gestartet werden.
 error.task_removed=Die Anmeldeaufgabe wurde entfernt.
 
 confirm.restore_all=Alle von diesem Werkzeug ausgeblendeten Verknüpfungen einblenden?

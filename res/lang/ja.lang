@@ -46,6 +46,7 @@ hint.keys=Space で切り替え · Enter でファイルの場所を開く
 error.elevation=全ユーザーのショートカットを変更するには管理者権限が必要です。
 error.store=状態ファイルを書き込めませんでした。
 error.task=サインイン タスクを作成できませんでした。
+error.watcher=バックグラウンドの監視を開始できませんでした。
 error.task_removed=サインイン タスクを削除しました。
 
 confirm.restore_all=このツールで隠したショートカットをすべて元に戻しますか？

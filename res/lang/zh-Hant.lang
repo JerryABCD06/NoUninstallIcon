@@ -46,6 +46,7 @@ hint.keys=空格鍵切換勾選 · Enter 開啟檔案位置
 error.elevation=修改所有使用者的捷徑需要系統管理員權限。
 error.store=狀態檔寫入失敗。
 error.task=登入工作建立失敗。
+error.watcher=無法啟動背景監視。
 error.task_removed=登入工作已移除。
 
 confirm.restore_all=要取消本工具隱藏的全部捷徑嗎？

@@ -50,6 +50,7 @@ hint.keys=Espace bascule · Entrée ouvre l'emplacement du fichier
 error.elevation=Modifier les raccourcis de tous les utilisateurs exige des droits d'administrateur.
 error.store=Le fichier d'état n'a pas pu être écrit.
 error.task=La tâche d'ouverture de session n'a pas pu être créée.
+error.watcher=Le surveillant en arrière-plan n'a pas pu démarrer.
 error.task_removed=La tâche d'ouverture de session a été supprimée.
 
 confirm.restore_all=Réafficher tous les raccourcis masqués par cet outil ?

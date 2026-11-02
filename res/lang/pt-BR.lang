@@ -50,6 +50,7 @@ hint.keys=Espaço alterna · Enter abre o local do arquivo
 error.elevation=Alterar atalhos de todos os usuários exige privilégios de administrador.
 error.store=Não foi possível gravar o arquivo de estado.
 error.task=Não foi possível criar a tarefa de entrada.
+error.watcher=Não foi possível iniciar o monitor em segundo plano.
 error.task_removed=A tarefa de entrada foi removida.
 
 confirm.restore_all=Restaurar todos os atalhos ocultos por esta ferramenta?

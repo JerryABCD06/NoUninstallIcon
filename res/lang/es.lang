@@ -50,6 +50,7 @@ hint.keys=Espacio alterna · Intro abre la ubicación del archivo
 error.elevation=Cambiar accesos directos de todos los usuarios requiere permisos de administrador.
 error.store=No se pudo escribir el archivo de estado.
 error.task=No se pudo crear la tarea de inicio de sesión.
+error.watcher=No se pudo iniciar el vigilante en segundo plano.
 error.task_removed=La tarea de inicio de sesión se ha eliminado.
 
 confirm.restore_all=¿Restaurar todos los accesos directos ocultos por esta herramienta?

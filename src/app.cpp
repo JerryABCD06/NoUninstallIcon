@@ -487,6 +487,8 @@ int App::RunGui(int showCommand)
         StateLock stateGuard;
         if (!stateGuard.held())
         {
+            store_.Load();  // only a read, for the rollback below
+            window_.SetLanguageQuiet(store_.Settings().language);
             window_.ShowToast(i18n::T(L"error.store"), false);
             return;
         }
@@ -500,22 +502,24 @@ int App::RunGui(int showCommand)
         window_.SetLanguageQuiet(previous);
         window_.ShowToast(i18n::T(L"error.store"), false);
     };
+    window_.callbacks.undo = [this]() { HandleUndo(); };
+    window_.callbacks.openLocation = [this](int index) { HandleOpenLocation(index); };
     window_.callbacks.scanDone = [this]() { FinishScan(); };
     window_.callbacks.autostartDone = [this](bool ok, AutostartMode mode) {
         if (!ok)
         {
             LogLineF(L"Autostart change failed: %s", AutostartLastError().c_str());
-            window_.SetAutostartMode(AutostartMode::Off);
+            window_.SetAutostartMode(store_.Settings().autostart);
             window_.ShowToast(i18n::T(L"error.task"), false);
             return;
         }
         {
             StateLock stateGuard;
             if (!stateGuard.held())
-                window_.SetAutostartMode(store_.Settings().autostart);
             {
                 // The task may have changed, but the setting was not recorded, so
                 // do not publish a mode that will not survive the next launch.
+                window_.SetAutostartMode(store_.Settings().autostart);
                 window_.ShowToast(i18n::T(L"error.store"), false);
                 return;
             }
@@ -543,6 +547,7 @@ int App::RunGui(int showCommand)
         // Tell the watcher what it should be. It adjusts its own icon and exits
         // when the mode stops wanting one, so nothing is restarted here and the
         // icon never blinks. A watcher is started only when none is running.
+        bool launched = true;
         session::Publish(static_cast<int>(mode));
         if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
         {
@@ -553,9 +558,18 @@ int App::RunGui(int showCommand)
                 CloseHandle(slot);
             }
             if (!alreadyRunning)
-                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL);
+            {
+                const INT_PTR started = reinterpret_cast<INT_PTR>(
+                    ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL));
+                if (started <= 32)
+                {
+                    launched = false;
+                    LogLineF(L"mode: watcher launch failed: %lld", static_cast<long long>(started));
+                    window_.ShowToast(i18n::T(L"error.watcher"), false);
+                }
+            }
         }
-        if (mode == AutostartMode::Watch || mode == AutostartMode::Silent)
+        if (launched && (mode == AutostartMode::Watch || mode == AutostartMode::Silent))
             window_.ShowToast(i18n::T(L"toast.watchOn"), false);
         if (mode == AutostartMode::Once) window_.ShowToast(i18n::T(L"toast.onceOn"), false);
         if (mode == AutostartMode::Off) window_.ShowToast(i18n::T(L"error.task_removed"), false);
@@ -592,9 +606,17 @@ int App::RunGui(int showCommand)
         }
         if (!alreadyRunning)
         {
-            const HINSTANCE started =
-                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL);
-            LogLineF(L"startup: launched watcher %p (err=%lu)", reinterpret_cast<void*>(started), GetLastError());
+            const INT_PTR started = reinterpret_cast<INT_PTR>(
+                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL));
+            if (started <= 32)
+            {
+                LogLineF(L"watcher launch failed: %lld", static_cast<long long>(started));
+                window_.ShowToast(i18n::T(L"error.watcher"), false);
+            }
+            else
+            {
+                LogLineF(L"startup: launched watcher %lld", static_cast<long long>(started));
+            }
         }
         else
         {

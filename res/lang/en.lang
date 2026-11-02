@@ -46,6 +46,7 @@ hint.keys=Space toggles \u00B7 Enter opens the file location
 error.elevation=Administrator rights are required to change system-wide shortcuts.
 error.store=The state file could not be written.
 error.task=The sign-in task could not be created.
+error.watcher=The background watcher could not be started.
 error.task_removed=The sign-in task was removed.
 
 confirm.restore_all=Unhide every shortcut managed by this tool?

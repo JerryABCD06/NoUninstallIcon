@@ -50,6 +50,7 @@ hint.keys=Spazio attiva · Invio apre la posizione del file
 error.elevation=Modificare le scorciatoie di tutti gli utenti richiede i privilegi di amministratore.
 error.store=Impossibile scrivere il file di stato.
 error.task=Impossibile creare l'attività di accesso.
+error.watcher=Impossibile avviare il controllo in background.
 error.task_removed=L'attività di accesso è stata rimossa.
 
 confirm.restore_all=Ripristinare tutte le scorciatoie nascoste da questo strumento?
