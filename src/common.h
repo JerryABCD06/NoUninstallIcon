@@ -34,7 +34,11 @@
 #include <cmath>
 #include <cstdint>
 #include <cstdio>
+#include <condition_variable>
 #include <cstring>
+#include <deque>
+#include <set>
+#include <thread>
 #include <functional>
 #include <initializer_list>
 #include <map>
@@ -52,6 +56,7 @@ using Microsoft::WRL::ComPtr;
 constexpr UINT WM_APP_SCAN_DONE = WM_APP + 1;
 constexpr UINT WM_APP_APPLY_DONE = WM_APP + 2;
 constexpr UINT WM_APP_AUTOSTART_DONE = WM_APP + 3;
+constexpr UINT WM_APP_ICON_READY = WM_APP + 4;
 
 constexpr wchar_t kAppRegKey[] = L"Software\\NoUninstallIcon";
 constexpr wchar_t kAppDataFolder[] = L"NoUninstallIcon";

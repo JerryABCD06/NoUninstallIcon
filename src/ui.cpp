@@ -180,6 +180,9 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
     case WM_APP_SCAN_DONE:
         if (callbacks.scanDone) callbacks.scanDone();
         return 0;
+    case WM_APP_ICON_READY:
+        DrainReadyIcons();
+        return 0;
     case WM_APP_AUTOSTART_DONE:
         if (callbacks.autostartDone)
             callbacks.autostartDone(wparam != 0, static_cast<AutostartMode>(static_cast<int>(lparam)));
@@ -205,6 +208,7 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         return 0;
     }
     case WM_DESTROY:
+        StopIconWorker();
         GfxDestroy(gfx_);
         PostQuitMessage(0);
         return 0;
@@ -228,6 +232,7 @@ void MainWindow::OnCreate()
     gfx_.dpi = scale_ * 96.0f;
     GfxCreate(gfx_, hwnd_, static_cast<UINT>(clientWidth_), static_cast<UINT>(clientHeight_), gfx_.dpi);
 
+    StartIconWorker();
     ApplyTheme();
     RefreshText();
     SetFocusTarget(FocusTarget::Search);
@@ -899,37 +904,129 @@ ID2D1Bitmap* MainWindow::IconFor(const std::wstring& path, int size)
 {
     auto it = icons_.find(path);
     if (it != icons_.end()) return it->second.Get();
-    if (!wic_ || !painter_.Target())
-    {
-        return nullptr;
-    }
 
-    ComPtr<ID2D1Bitmap> bitmap;
-    SHFILEINFOW info{};
-    if (SHGetFileInfoW(path.c_str(), 0, &info, sizeof(info), SHGFI_ICON | SHGFI_LARGEICON) && info.hIcon)
+    // Off-screen rendering has no worker; extract inline so screenshots keep
+    // their icons.
+    if (!gfx_.dc && painter_.Target() && wic_)
     {
-        ComPtr<IWICBitmap> source;
-        if (SUCCEEDED(wic_->CreateBitmapFromHICON(info.hIcon, source.GetAddressOf())))
+        ComPtr<ID2D1Bitmap> bitmap;
+        SHFILEINFOW info{};
+        if (SHGetFileInfoW(path.c_str(), 0, &info, sizeof(info), SHGFI_ICON | SHGFI_LARGEICON) && info.hIcon)
         {
-            ComPtr<IWICFormatConverter> converter;
-            if (SUCCEEDED(wic_->CreateFormatConverter(converter.GetAddressOf())) &&
-                SUCCEEDED(converter->Initialize(source.Get(), GUID_WICPixelFormat32bppPBGRA,
-                                                WICBitmapDitherTypeNone, nullptr, 0.0,
-                                                WICBitmapPaletteTypeCustom)))
+            ComPtr<IWICBitmap> source;
+            if (SUCCEEDED(wic_->CreateBitmapFromHICON(info.hIcon, source.GetAddressOf())))
             {
-                D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
-                    D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
-                painter_.Target()->CreateBitmapFromWicBitmap(converter.Get(), &props, bitmap.GetAddressOf());
+                ComPtr<IWICFormatConverter> converter;
+                if (SUCCEEDED(wic_->CreateFormatConverter(converter.GetAddressOf())) &&
+                    SUCCEEDED(converter->Initialize(source.Get(), GUID_WICPixelFormat32bppPBGRA,
+                                                    WICBitmapDitherTypeNone, nullptr, 0.0,
+                                                    WICBitmapPaletteTypeCustom)))
+                {
+                    D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
+                        D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+                    painter_.Target()->CreateBitmapFromWicBitmap(converter.Get(), &props, bitmap.GetAddressOf());
+                }
             }
+            DestroyIcon(info.hIcon);
         }
-        DestroyIcon(info.hIcon);
+        auto inserted = icons_.emplace(path, std::move(bitmap));
+        (void)size;
+        return inserted.first->second.Get();
     }
 
-    auto inserted = icons_.emplace(path, std::move(bitmap));
-    (void)size;
-    return inserted.first->second.Get();
+    {
+        std::lock_guard<std::mutex> guard(iconMutex_);
+        if (iconRequested_.insert(path).second) iconQueue_.push_back(path);
+    }
+    iconCv_.notify_one();
+    return nullptr;
 }
 
+void MainWindow::StartIconWorker()
+{
+    if (iconThread_.joinable()) return;
+    iconThread_ = std::thread([this]() { IconWorkerMain(); });
+}
+
+void MainWindow::StopIconWorker()
+{
+    {
+        std::lock_guard<std::mutex> guard(iconMutex_);
+        iconStop_ = true;
+    }
+    iconCv_.notify_all();
+    if (iconThread_.joinable()) iconThread_.join();
+}
+
+void MainWindow::IconWorkerMain()
+{
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    ComPtr<IWICImagingFactory> wic;
+    CoCreateInstance(CLSID_WICImagingFactory, nullptr, CLSCTX_INPROC_SERVER, IID_PPV_ARGS(wic.GetAddressOf()));
+
+    for (;;)
+    {
+        std::wstring path;
+        {
+            std::unique_lock<std::mutex> lock(iconMutex_);
+            iconCv_.wait(lock, [this]() { return iconStop_ || !iconQueue_.empty(); });
+            if (iconStop_) break;
+            path = std::move(iconQueue_.front());
+            iconQueue_.pop_front();
+        }
+
+        SHFILEINFOW info{};
+        if (wic && SHGetFileInfoW(path.c_str(), 0, &info, sizeof(info), SHGFI_ICON | SHGFI_LARGEICON) &&
+            info.hIcon)
+        {
+            ComPtr<IWICBitmap> source;
+            if (SUCCEEDED(wic->CreateBitmapFromHICON(info.hIcon, source.GetAddressOf())))
+            {
+                ComPtr<IWICFormatConverter> converter;
+                if (SUCCEEDED(wic->CreateFormatConverter(converter.GetAddressOf())) &&
+                    SUCCEEDED(converter->Initialize(source.Get(), GUID_WICPixelFormat32bppPBGRA,
+                                                    WICBitmapDitherTypeNone, nullptr, 0.0,
+                                                    WICBitmapPaletteTypeCustom)))
+                {
+                    ComPtr<IWICBitmap> converted;
+                    if (SUCCEEDED(wic->CreateBitmapFromSource(converter.Get(), WICBitmapCacheOnLoad,
+                                                              converted.GetAddressOf())))
+                    {
+                        std::lock_guard<std::mutex> guard(iconMutex_);
+                        iconReady_.emplace_back(path, std::move(converted));
+                    }
+                }
+            }
+            DestroyIcon(info.hIcon);
+        }
+
+        if (hwnd_) PostMessageW(hwnd_, WM_APP_ICON_READY, 0, 0);
+    }
+
+    CoUninitialize();
+}
+
+void MainWindow::DrainReadyIcons()
+{
+    std::vector<std::pair<std::wstring, ComPtr<IWICBitmap>>> ready;
+    {
+        std::lock_guard<std::mutex> guard(iconMutex_);
+        ready.swap(iconReady_);
+    }
+    if (!gfx_.dc || ready.empty()) return;
+
+    for (auto& entry : ready)
+    {
+        if (icons_.count(entry.first)) continue;
+        ComPtr<ID2D1Bitmap> bitmap;
+        D2D1_BITMAP_PROPERTIES props = D2D1::BitmapProperties(
+            D2D1::PixelFormat(DXGI_FORMAT_B8G8R8A8_UNORM, D2D1_ALPHA_MODE_PREMULTIPLIED));
+        if (SUCCEEDED(gfx_.dc->CreateBitmapFromWicBitmap(entry.second.Get(), &props, bitmap.GetAddressOf())))
+            icons_[entry.first] = std::move(bitmap);
+    }
+    Invalidate();
+}
 void MainWindow::OnMouseMove(int x, int y)
 {
     if (!trackingMouse_)

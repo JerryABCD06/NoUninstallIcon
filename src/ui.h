@@ -140,6 +140,10 @@ private:
     void CycleLanguage(int delta);
     void ApplyLanguage(const std::wstring& code);
     void DrawFocusRing();
+    void StartIconWorker();
+    void StopIconWorker();
+    void IconWorkerMain();
+    void DrainReadyIcons();
     bool HideActionRect(D2D1_RECT_F& rect);
     bool IsFocusTargetAvailable(FocusTarget target);
     void DemoteHiddenFocus();
@@ -200,6 +204,16 @@ private:
 
     ComPtr<IWICImagingFactory> wic_;
     std::map<std::wstring, ComPtr<ID2D1Bitmap>> icons_;
+
+    // Icon extraction is slow enough (a .lnk has to be resolved) that doing it
+    // during a paint stalls the window while scrolling.
+    std::thread iconThread_;
+    std::mutex iconMutex_;
+    std::condition_variable iconCv_;
+    std::deque<std::wstring> iconQueue_;
+    std::set<std::wstring> iconRequested_;
+    std::vector<std::pair<std::wstring, ComPtr<IWICBitmap>>> iconReady_;
+    bool iconStop_ = false;
 
     float langButtonWidth_ = 120.0f;
     float autostartLabelWidth_ = 150.0f;
