@@ -96,3 +96,7 @@ a11y.aboutBody=本ソフトウェアは自由ソフトウェアです。MIT ラ�
 a11y.aboutLink=作者のページを開く：github.com/JerryABCD06
 a11y.emptySearch=“{0}”に一致するショートカットはありません
 a11y.emptyList=ショートカットが見つかりません
+menu.hide=隠す
+menu.show=表示する
+menu.open_shortcut=ショートカットの場所を開く
+menu.open_target=リンク先の場所を開く

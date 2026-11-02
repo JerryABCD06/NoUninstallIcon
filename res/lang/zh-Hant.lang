@@ -96,3 +96,7 @@ a11y.aboutBody=本軟體是自由軟體。本軟體採用 MIT 授權條款發布
 a11y.aboutLink=開啟作者首頁：github.com/JerryABCD06
 a11y.emptySearch=沒有符合“{0}”的捷徑
 a11y.emptyList=找不到任何捷徑
+menu.hide=隱藏
+menu.show=顯示
+menu.open_shortcut=開啟捷徑位置
+menu.open_target=開啟目標檔案的位置

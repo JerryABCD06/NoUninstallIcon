@@ -96,3 +96,7 @@ a11y.aboutBody=本软件是自由软件。本软件采用 MIT 许可证发布。
 a11y.aboutLink=打开作者主页：github.com/JerryABCD06
 a11y.emptySearch=没有匹配“{0}”的快捷方式
 a11y.emptyList=没有找到任何快捷方式
+menu.hide=隐藏
+menu.show=显示
+menu.open_shortcut=打开快捷方式位置
+menu.open_target=打开指向的文件的位置

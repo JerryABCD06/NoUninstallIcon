@@ -1279,8 +1279,8 @@ void MainWindow::OnLeftDown(int x, int y)
     {
         SetFocusTarget(FocusTarget::List);
         focusRow_ = row;
-        bool onCheckbox = fx >= kCheckLeft - 8.0f && fx <= kCheckLeft + kCheckSize + 8.0f;
-        if (onCheckbox && model_)
+        // The whole row toggles; the checkbox is just its indicator.
+        if (model_)
         {
             const ShortcutItem* item = model_->At(row);
             bool hidden = !(item->managed && item->desiredHidden);
@@ -2207,6 +2207,13 @@ void MainWindow::OnRightClick(int x, int y)
     float fx = static_cast<float>(x) / scale_;
     float fy = static_cast<float>(y) / scale_;
     Layout layout = ComputeLayout();
+
+    int row = RowAtPoint(fy, nullptr);
+    if (row >= 0)
+    {
+        ShowContextMenu(row);
+        return;
+    }
     if (!ContainsPoint(layout.search, fx, fy)) return;
 
     if (!searchFocused_) SetSearchFocus(true);
@@ -2219,6 +2226,49 @@ void MainWindow::OnRightClick(int x, int y)
     }
     Invalidate();
     ShowSearchMenu();
+}
+
+void MainWindow::ShowContextMenu(int rowIndex)
+{
+    if (!model_) return;
+    const ShortcutItem* item = model_->At(rowIndex);
+    if (!item) return;
+
+    focusRow_ = rowIndex;
+    SetFocusTarget(FocusTarget::List);
+
+    const bool willHide = !(item->managed && item->desiredHidden);
+    const bool hasTarget = !item->target.empty();
+
+    HMENU menu = CreatePopupMenu();
+    AppendMenuW(menu, MF_STRING, 1301, willHide ? i18n::T(L"menu.hide") : i18n::T(L"menu.show"));
+    AppendMenuW(menu, MF_STRING, 1302, i18n::T(L"menu.open_shortcut"));
+    AppendMenuW(menu, MF_STRING | (hasTarget ? 0 : MF_GRAYED), 1303, i18n::T(L"menu.open_target"));
+
+    POINT point{};
+    GetCursorPos(&point);
+    SetForegroundWindow(hwnd_);
+    int command = TrackPopupMenu(menu, TPM_RETURNCMD | TPM_RIGHTBUTTON, point.x, point.y, 0, hwnd_, nullptr);
+    DestroyMenu(menu);
+    PostMessage(hwnd_, WM_NULL, 0, 0);
+
+    switch (command)
+    {
+    case 1301:
+        if (callbacks.toggleItem) callbacks.toggleItem(model_->rows[rowIndex], willHide);
+        break;
+    case 1302:
+        if (callbacks.openLocation) callbacks.openLocation(model_->rows[rowIndex]);
+        break;
+    case 1303:
+    {
+        std::wstring arguments = L"/select,\"" + item->target + L"\"";
+        ShellExecuteW(nullptr, L"open", L"explorer.exe", arguments.c_str(), nullptr, SW_SHOWNORMAL);
+        break;
+    }
+    default:
+        break;
+    }
 }
 
 void MainWindow::ShowSearchMenu()
