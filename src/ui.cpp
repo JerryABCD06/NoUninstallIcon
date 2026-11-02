@@ -2274,6 +2274,10 @@ void MainWindow::OnRightClick(int x, int y)
 
 void MainWindow::ShowContextForFocus()
 {
+    // Guard against a second request while a menu is already up.
+    if (menuOpen_) return;
+    menuOpen_ = true;
+
     switch (focus_)
     {
     case FocusTarget::Search: ShowSearchMenu(); break;
@@ -2287,6 +2291,8 @@ void MainWindow::ShowContextForFocus()
         }
         break;
     }
+
+    menuOpen_ = false;
 }
 
 void MainWindow::ShowContextMenu(int rowIndex, bool fromKeyboard)
