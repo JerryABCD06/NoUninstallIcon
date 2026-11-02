@@ -145,6 +145,14 @@ public:
             retVal->parray = array;
             return S_OK;
         }
+        case UIA_PositionInSetPropertyId:
+            retVal->vt = VT_I4;
+            retVal->lVal = found ? element.positionInSet : 0;
+            return S_OK;
+        case UIA_SizeOfSetPropertyId:
+            retVal->vt = VT_I4;
+            retVal->lVal = found ? element.sizeOfSet : 0;
+            return S_OK;
         case UIA_AutomationIdPropertyId:
         {
             wchar_t buffer[16]{};
@@ -260,16 +268,24 @@ public:
     HRESULT STDMETHODCALLTYPE GetRuntimeId(SAFEARRAY** retVal) override
     {
         if (!retVal) return E_INVALIDARG;
-        *retVal = SafeArrayCreateVector(VT_I4, 0, 3);
+
+        SnapshotElement element;
+        const bool found = Find(id_, element);
+        const bool hasIdentity = found && element.identity != 0;
+
+        // Each row must have its own runtime id, otherwise a screen reader sees
+        // "focus moved to the element that already had focus" and stays silent.
+        *retVal = SafeArrayCreateVector(VT_I4, 0, hasIdentity ? 4 : 3);
         if (!*retVal) return E_OUTOFMEMORY;
-        int id = UiaAppendRuntimeId;
-        int hwndValue = static_cast<int>(reinterpret_cast<INT_PTR>(gHwnd));
-        int index = static_cast<int>(id_);
-        for (LONG i = 0; i < 3; ++i)
-        {
-            int value = (i == 0) ? id : (i == 1 ? hwndValue : index);
-            SafeArrayPutElement(*retVal, &i, &value);
-        }
+
+        int values[4];
+        values[0] = UiaAppendRuntimeId;
+        values[1] = static_cast<int>(reinterpret_cast<INT_PTR>(gHwnd));
+        values[2] = static_cast<int>(id_);
+        values[3] = hasIdentity ? static_cast<int>(element.identity) : 0;
+
+        LONG length = hasIdentity ? 4 : 3;
+        for (LONG i = 0; i < length; ++i) SafeArrayPutElement(*retVal, &i, &values[i]);
         return S_OK;
     }
 

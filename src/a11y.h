@@ -33,6 +33,9 @@ struct SnapshotElement
     bool focusable = true;
     bool focused = false;
     bool offscreen = false;
+    long long identity = 0;  // non-zero makes the runtime id unique per row
+    int positionInSet = 0;
+    int sizeOfSet = 0;
 };
 
 void Install(HWND hwnd);

@@ -2354,6 +2354,10 @@ void MainWindow::PublishAccessibility(const Layout& layout)
         rowElement.bounds = toScreen(rowRect);
         rowElement.controlType = UIA_ListItemControlTypeId;
         rowElement.focused = true;
+        // Stable per shortcut, so the runtime id changes when the row changes.
+        rowElement.identity = static_cast<long long>(std::hash<std::wstring>{}(row->path) & 0x7FFFFFFF);
+        rowElement.positionInSet = focusRow_ + 1;
+        rowElement.sizeOfSet = model_->RowCount();
         elements.push_back(std::move(rowElement));
     }
 
