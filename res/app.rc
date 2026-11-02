@@ -2,6 +2,7 @@
 // stays a single self-contained file.
 #include <winver.h>
 
+#define IDR_LANG_MAP     100
 #define IDR_LANG_EN      101
 #define IDR_LANG_ZH_HANS 102
 #define IDR_LANG_ZH_HANT 103
@@ -10,6 +11,7 @@
 
 1 ICON "app.ico"
 
+IDR_LANG_MAP     RCDATA "lang\\map.txt"
 IDR_LANG_EN      RCDATA "lang\\en.lang"
 IDR_LANG_ZH_HANS RCDATA "lang\\zh-Hans.lang"
 IDR_LANG_ZH_HANT RCDATA "lang\\zh-Hant.lang"
