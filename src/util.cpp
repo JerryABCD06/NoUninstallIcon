@@ -108,43 +108,38 @@ bool IsPortableMode()
 
 std::wstring GetDataDir()
 {
-    static std::wstring cached;
-    static bool resolved = false;
-    if (resolved) return cached;
-    resolved = true;
+    // Function-local statics are initialised exactly once even when the scan,
+    // watch and UI threads race here.
+    static const std::wstring cached = []() -> std::wstring {
+        // 1. Explicit override, used by tests and by people who want the data elsewhere.
+        wchar_t overridePath[MAX_PATH]{};
+        DWORD overrideLength = GetEnvironmentVariableW(L"NOUI_DATA_DIR", overridePath, MAX_PATH);
+        if (overrideLength > 0 && overrideLength < MAX_PATH) return overridePath;
 
-    // 1. Explicit override, used by tests and by people who want the data elsewhere.
-    wchar_t overridePath[MAX_PATH]{};
-    DWORD overrideLength = GetEnvironmentVariableW(L"NOUI_DATA_DIR", overridePath, MAX_PATH);
-    if (overrideLength > 0 && overrideLength < MAX_PATH)
-    {
-        cached = overridePath;
-        return cached;
-    }
+        const std::wstring exeDir = GetExeDir();
 
-    // 2. Portable mode: a "portable" file next to the executable keeps the
-    //    records in <exe dir>\data instead of the user profile.
-    const std::wstring exeDir = GetExeDir();
-    if (!exeDir.empty() && PathFileExistsW(JoinPath(exeDir, L"portable").c_str()))
-    {
-        std::wstring portableDir = JoinPath(exeDir, L"data");
-        if (EnsureDirectory(portableDir) && DirectoryIsWritable(portableDir))
+        // 2. Portable mode: a "portable" file next to the executable keeps the
+        //    records in <exe dir>\data instead of the user profile.
+        if (!exeDir.empty() && PathFileExistsW(JoinPath(exeDir, L"portable").c_str()))
         {
-            gPortable = true;
-            cached = portableDir;
-            return cached;
+            std::wstring portableDir = JoinPath(exeDir, L"data");
+            if (EnsureDirectory(portableDir) && DirectoryIsWritable(portableDir))
+            {
+                gPortable = true;
+                return portableDir;
+            }
+            // Read-only location (for example a CD): fall through to the profile.
         }
-        // Read-only location (for example a CD): fall through to the profile.
-    }
 
-    // 3. Default: per-user application data.
-    PWSTR localAppData = nullptr;
-    std::wstring result;
-    if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_CREATE, nullptr, &localAppData)) && localAppData)
-        result = std::wstring(localAppData) + L"\\" + kAppDataFolder;
-    CoTaskMemFree(localAppData);
-    if (result.empty()) result = exeDir + L"\\" + kAppDataFolder;
-    cached = result;
+        // 3. Default: per-user application data.
+        PWSTR localAppData = nullptr;
+        std::wstring result;
+        if (SUCCEEDED(SHGetKnownFolderPath(FOLDERID_LocalAppData, KF_FLAG_CREATE, nullptr, &localAppData)) && localAppData)
+            result = std::wstring(localAppData) + L"\\" + kAppDataFolder;
+        CoTaskMemFree(localAppData);
+        if (result.empty()) result = exeDir + L"\\" + kAppDataFolder;
+        return result;
+    }();
     return cached;
 }
 

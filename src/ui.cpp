@@ -27,6 +27,9 @@ constexpr wchar_t kIconCheck[] = L"\uE73E";
 constexpr wchar_t kIconGlobe[] = L"\uE774";
 constexpr wchar_t kIconInfo[] = L"\uE946";
 
+constexpr size_t kMaxQueryLength = 200;
+constexpr size_t kMaxClipboardLength = 4096;
+
 constexpr wchar_t kAuthorUrl[] = L"https://github.com/JerryABCD06/";
 constexpr wchar_t kAuthorDisplay[] = L"github.com/JerryABCD06";
 
@@ -157,6 +160,11 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         if (row >= 0 && callbacks.openLocation) callbacks.openLocation(model_->rows[row]);
         return 0;
     }
+    case WM_CAPTURECHANGED:
+        // Losing capture (alt-tab, a menu) must not leave a drag half-armed.
+        selecting_ = false;
+        draggingThumb_ = false;
+        return 0;
     case WM_MOUSEWHEEL:
         OnMouseWheel(GET_WHEEL_DELTA_WPARAM(wparam));
         return 0;
@@ -171,6 +179,10 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
         return 0;
     case WM_APP_SCAN_DONE:
         if (callbacks.scanDone) callbacks.scanDone();
+        return 0;
+    case WM_APP_AUTOSTART_DONE:
+        if (callbacks.autostartDone)
+            callbacks.autostartDone(wparam != 0, static_cast<AutostartMode>(static_cast<int>(lparam)));
         return 0;
     case WM_IME_STARTCOMPOSITION:
         OnImeStartComposition();
@@ -766,7 +778,7 @@ void MainWindow::DrawRow(const Entry& entry, const D2D1_RECT_F& rect, int rowInd
     D2D1_RECT_F iconRect = Rect(kIconLeft, centerY - 10.0f, kIconLeft + 20.0f, centerY + 10.0f);
     if (ID2D1Bitmap* icon = IconFor(item->path, 20))
     {
-        painter_.Target()->DrawBitmap(icon, iconRect, 0.95f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
+        if (painter_.Target()) painter_.Target()->DrawBitmap(icon, iconRect, 0.95f, D2D1_BITMAP_INTERPOLATION_MODE_LINEAR);
     }
     else
     {
@@ -1632,6 +1644,8 @@ std::wstring ReadClipboardText(HWND hwnd)
     }
     CloseClipboard();
 
+    if (text.size() > kMaxClipboardLength) text.resize(kMaxClipboardLength);
+
     // A search box is a single line: fold line breaks and tabs into spaces.
     std::wstring cleaned;
     cleaned.reserve(text.size());
@@ -1674,17 +1688,35 @@ void MainWindow::DeleteSelection()
     if (!HasSelection()) return;
     size_t from = std::min(caret_, anchor_);
     size_t to = std::max(caret_, anchor_);
+    if (from > query_.size()) from = query_.size();
+    if (to > query_.size()) to = query_.size();
+    if (to <= from)
+    {
+        caret_ = anchor_ = from;
+        return;
+    }
     query_.erase(from, to - from);
     caret_ = anchor_ = from;
     caretVisible_ = true;
     UpdateQuery();
 }
 
-void MainWindow::InsertText(const std::wstring& text)
+void MainWindow::InsertText(const std::wstring& incoming)
 {
-    if (text.empty()) return;
+    if (incoming.empty()) return;
+
+    // Keep the field bounded: every keystroke measures prefixes of this string,
+    // so an accidental paste of a whole document would stall the UI.
     size_t from = std::min(caret_, anchor_);
     size_t to = std::max(caret_, anchor_);
+    if (from > query_.size()) from = query_.size();
+    if (to > query_.size()) to = query_.size();
+    if (to < from) to = from;
+
+    size_t room = kMaxQueryLength > (query_.size() - (to - from)) ? kMaxQueryLength - (query_.size() - (to - from)) : 0;
+    std::wstring text = incoming.size() > room ? incoming.substr(0, room) : incoming;
+    if (text.empty() && to == from) return;
+
     query_.erase(from, to - from);
     query_.insert(from, text);
     caret_ = anchor_ = from + text.size();
@@ -1709,21 +1741,28 @@ void MainWindow::PasteFromClipboard()
 
 size_t MainWindow::CaretFromX(float x, const Layout& layout)
 {
+    // Hit-testing one layout is exact (it accounts for kerning) and constant
+    // time; measuring every prefix was O(n) layouts per mouse move.
     IDWriteTextFormat* format = painter_.Format(13.0f, DWRITE_FONT_WEIGHT_NORMAL);
-    const float left = layout.searchText.left;
-    size_t best = 0;
-    float bestDistance = 1.0e9f;
-    for (size_t i = 0; i <= query_.size(); ++i)
-    {
-        float width = painter_.TextWidth(query_.substr(0, i), format);
-        float distance = std::fabs(left + width - x);
-        if (distance < bestDistance)
-        {
-            bestDistance = distance;
-            best = i;
-        }
-    }
-    return best;
+    if (!format || !painter_.DWrite()) return query_.size();
+
+    const float width = std::max(1.0f, layout.searchText.right - layout.searchText.left);
+    const float height = std::max(1.0f, layout.searchText.bottom - layout.searchText.top);
+
+    ComPtr<IDWriteTextLayout> textLayout;
+    if (FAILED(painter_.DWrite()->CreateTextLayout(query_.c_str(), static_cast<UINT32>(query_.size()), format,
+                                                   width, height, textLayout.GetAddressOf())))
+        return query_.size();
+    textLayout->SetWordWrapping(DWRITE_WORD_WRAPPING_NO_WRAP);
+
+    BOOL trailing = FALSE;
+    BOOL inside = FALSE;
+    DWRITE_HIT_TEST_METRICS metrics{};
+    if (FAILED(textLayout->HitTestPoint(x - layout.searchText.left, height * 0.5f, &trailing, &inside, &metrics)))
+        return query_.size();
+
+    size_t index = metrics.textPosition + (trailing ? 1u : 0u);
+    return std::min<size_t>(index, query_.size());
 }
 
 void MainWindow::OnRightClick(int x, int y)
@@ -1795,7 +1834,7 @@ void MainWindow::ShowSearchMenu()
 }
 void MainWindow::SetPreviewQuery(const std::wstring& text)
 {
-    query_ = text;
+    query_ = text.size() > kMaxQueryLength ? text.substr(0, kMaxQueryLength) : text;
     anchor_ = 0;
     caret_ = text.size();
     searchFocused_ = true;

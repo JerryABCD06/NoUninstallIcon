@@ -21,6 +21,12 @@ long long NowSeconds()
 
 }  // namespace
 
+App::~App()
+{
+    // The scan thread captures `this`; it must not outlive this object.
+    if (scanThread_.joinable()) scanThread_.join();
+}
+
 bool App::Initialize(HINSTANCE instance)
 {
     instance_ = instance;
@@ -40,7 +46,9 @@ void App::StartScan()
     model_.statusText.clear();
     window_.SetLoading(true);
 
-    std::thread([this]() {
+    if (scanThread_.joinable()) scanThread_.join();
+
+    scanThread_ = std::thread([this]() {
         auto outcome = std::make_unique<ScanOutcome>();
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
         ScanStartMenu(*outcome);
@@ -51,7 +59,7 @@ void App::StartScan()
             pendingScan_ = std::move(outcome);
         }
         if (window_.Handle()) PostMessageW(window_.Handle(), WM_APP_SCAN_DONE, 0, 0);
-    }).detach();
+    });
 }
 
 void App::FinishScan()
@@ -238,29 +246,18 @@ void App::HandleHideGroup(bool hide)
 
 void App::HandleAutostart(AutostartMode mode)
 {
-    if (mode == AutostartMode::Off)
-    {
-        RemoveAutostart();
-        store_.Settings().autostart = AutostartMode::Off;
-        store_.Save();
-        window_.SetAutostartMode(AutostartMode::Off);
-        ShowToast(i18n::T(L"error.task_removed"), false);
-        return;
-    }
-
-    if (!InstallAutostart(mode))
-    {
-        store_.Settings().autostart = AutostartMode::Off;
-        store_.Save();
-        window_.SetAutostartMode(AutostartMode::Off);
-        ShowToast(i18n::T(L"error.task"), false);
-        LogLineF(L"InstallAutostart failed: %s", AutostartLastError().c_str());
-        return;
-    }
-
-    store_.Settings().autostart = mode;
-    store_.Save();
+    // Registering a task talks to the Task Scheduler service; doing that on the
+    // UI thread can leave the window unresponsive if the service is busy. The
+    // result comes back as WM_APP_AUTOSTART_DONE.
+    HWND hwnd = window_.Handle();
     window_.SetAutostartMode(mode);
+
+    std::thread([hwnd, mode]() {
+        CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+        bool ok = (mode == AutostartMode::Off) ? RemoveAutostart() : InstallAutostart(mode);
+        CoUninitialize();
+        if (hwnd) PostMessageW(hwnd, WM_APP_AUTOSTART_DONE, ok ? 1u : 0u, static_cast<LPARAM>(mode));
+    }).detach();
 }
 
 void App::HandleOpenLocation(int itemIndex)
@@ -335,18 +332,36 @@ int App::RunGui(int showCommand)
     window_.callbacks.undo = [this]() { HandleUndo(); };
     window_.callbacks.openLocation = [this](int index) { HandleOpenLocation(index); };
     window_.callbacks.scanDone = [this]() { FinishScan(); };
-
-    // If the sign-in task disappeared (Windows update, cleanup tool), recreate it
-    // while we still have the chance to run elevated.
-    if (store_.Settings().autostart != AutostartMode::Off && !IsAutostartInstalled())
-    {
-        InstallAutostart(store_.Settings().autostart);
-    }
+    window_.callbacks.autostartDone = [this](bool ok, AutostartMode mode) {
+        if (!ok)
+        {
+            LogLineF(L"Autostart change failed: %s", AutostartLastError().c_str());
+            window_.SetAutostartMode(AutostartMode::Off);
+            window_.ShowToast(i18n::T(L"error.task"), false);
+            return;
+        }
+        store_.Settings().autostart = mode;
+        store_.Save();
+        window_.SetAutostartMode(mode);
+        if (mode == AutostartMode::Off) window_.ShowToast(i18n::T(L"error.task_removed"), false);
+    };
 
     if (!window_.Create(instance_, showCommand)) return 1;
 
     model_.loading = true;
     StartScan();
+
+    // If the sign-in task disappeared (Windows update, cleanup tool), recreate it
+    // in the background so a slow Task Scheduler service cannot delay startup.
+    const AutostartMode savedMode = store_.Settings().autostart;
+    if (savedMode != AutostartMode::Off)
+    {
+        std::thread([savedMode]() {
+            CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+            if (!IsAutostartInstalled()) InstallAutostart(savedMode);
+            CoUninitialize();
+        }).detach();
+    }
 
     if (!capturePath_.empty())
     {

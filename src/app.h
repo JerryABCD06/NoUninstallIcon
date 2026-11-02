@@ -7,9 +7,16 @@
 #include "store.h"
 #include "ui.h"
 
+#include <thread>
+
 class App
 {
 public:
+    App() = default;
+    ~App();
+    App(const App&) = delete;
+    App& operator=(const App&) = delete;
+
     bool Initialize(HINSTANCE instance);
 
     int RunGui(int showCommand);
@@ -45,6 +52,7 @@ private:
     Store store_;
     MainWindow window_;
 
+    std::thread scanThread_;
     std::mutex scanMutex_;
     std::unique_ptr<ScanOutcome> pendingScan_;
     bool scanning_ = false;

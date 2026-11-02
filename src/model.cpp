@@ -9,6 +9,8 @@ int CompareNatural(const std::wstring& a, const std::wstring& b)
 {
     int result = CompareStringEx(i18n::LocaleName(), SORT_DIGITSASNUMBERS, a.c_str(), -1, b.c_str(), -1,
                                  nullptr, nullptr, 0);
+    // CompareStringEx returns 0 on failure. Mapping that to a comparison result
+    // would break the strict weak ordering std::stable_sort requires.
     if (result == 0) return 0;
     return result - CSTR_EQUAL;
 }

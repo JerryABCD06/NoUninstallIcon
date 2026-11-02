@@ -4,9 +4,24 @@
 
 #include <taskschd.h>
 
+#include <mutex>
+
 namespace {
 
+std::mutex gErrorMutex;
 std::wstring gLastError;
+
+void SetError(const std::wstring& text)
+{
+    std::lock_guard<std::mutex> guard(gErrorMutex);
+    gLastError = text;
+}
+
+void ClearError()
+{
+    std::lock_guard<std::mutex> guard(gErrorMutex);
+    gLastError.clear();
+}
 
 struct Bstr
 {
@@ -21,8 +36,9 @@ struct Bstr
 
 void Fail(const wchar_t* step, HRESULT hr)
 {
-    gLastError = Fmt(L"%s failed (0x%08X)", step, static_cast<unsigned>(hr));
-    LogLine(gLastError);
+    const std::wstring message = Fmt(L"%s failed (0x%08X)", step, static_cast<unsigned>(hr));
+    SetError(message);
+    LogLine(message);
 }
 
 bool Connect(ComPtr<ITaskService>& service)
@@ -69,6 +85,7 @@ bool CurrentUser(std::wstring& name)
 
 std::wstring AutostartLastError()
 {
+    std::lock_guard<std::mutex> guard(gErrorMutex);
     return gLastError;
 }
 
@@ -88,7 +105,7 @@ bool IsAutostartInstalled()
 
 bool InstallAutostart(AutostartMode mode)
 {
-    gLastError.clear();
+    ClearError();
     if (mode == AutostartMode::Off) return RemoveAutostart();
 
     ComPtr<ITaskService> service;
@@ -97,14 +114,14 @@ bool InstallAutostart(AutostartMode mode)
     std::wstring user;
     if (!CurrentUser(user))
     {
-        gLastError = L"GetUserNameEx failed";
+        SetError(L"GetUserNameEx failed");
         return false;
     }
 
     ComPtr<ITaskDefinition> definition;
     if (FAILED(service->NewTask(0, definition.GetAddressOf())))
     {
-        gLastError = L"NewTask failed";
+        SetError(L"NewTask failed");
         return false;
     }
 
@@ -120,7 +137,7 @@ bool InstallAutostart(AutostartMode mode)
     ComPtr<IPrincipal> principal;
     if (FAILED(definition->get_Principal(principal.GetAddressOf())))
     {
-        gLastError = L"get_Principal failed";
+        SetError(L"get_Principal failed");
         return false;
     }
     Bstr userBstr(user);
@@ -131,13 +148,13 @@ bool InstallAutostart(AutostartMode mode)
     ComPtr<ITriggerCollection> triggers;
     if (FAILED(definition->get_Triggers(triggers.GetAddressOf())))
     {
-        gLastError = L"get_Triggers failed";
+        SetError(L"get_Triggers failed");
         return false;
     }
     ComPtr<ITrigger> trigger;
     if (FAILED(triggers->Create(TASK_TRIGGER_LOGON, trigger.GetAddressOf())))
     {
-        gLastError = L"Create trigger failed";
+        SetError(L"Create trigger failed");
         return false;
     }
     ComPtr<ILogonTrigger> logon;
@@ -151,19 +168,19 @@ bool InstallAutostart(AutostartMode mode)
     ComPtr<IActionCollection> actions;
     if (FAILED(definition->get_Actions(actions.GetAddressOf())))
     {
-        gLastError = L"get_Actions failed";
+        SetError(L"get_Actions failed");
         return false;
     }
     ComPtr<IAction> action;
     if (FAILED(actions->Create(TASK_ACTION_EXEC, action.GetAddressOf())))
     {
-        gLastError = L"Create action failed";
+        SetError(L"Create action failed");
         return false;
     }
     ComPtr<IExecAction> exec;
     if (FAILED(action.As(&exec)))
     {
-        gLastError = L"QueryInterface IExecAction failed";
+        SetError(L"QueryInterface IExecAction failed");
         return false;
     }
     Bstr exePath(GetExePath());
@@ -186,7 +203,7 @@ bool InstallAutostart(AutostartMode mode)
     Bstr root(L"\\");
     if (FAILED(service->GetFolder(root, folder.GetAddressOf())))
     {
-        gLastError = L"GetFolder failed";
+        SetError(L"GetFolder failed");
         return false;
     }
 
@@ -209,7 +226,7 @@ bool InstallAutostart(AutostartMode mode)
 
 bool RemoveAutostart()
 {
-    gLastError.clear();
+    ClearError();
     ComPtr<ITaskService> service;
     if (!Connect(service)) return false;
 

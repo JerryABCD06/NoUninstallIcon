@@ -1,6 +1,7 @@
 #include "common.h"
 
 #include "app.h"
+#include "crash.h"
 #include "i18n.h"
 #include "util.h"
 
@@ -18,6 +19,7 @@ struct Options
         Screenshot,
         Dump,
         Preview,
+        CrashTest,
         Restore,
         Cleanup,
         SelfTest,
@@ -68,6 +70,10 @@ Options ParseOptions(int argc, wchar_t** argv)
         {
             options.mode = Options::Mode::SelfTest;
         }
+        else if (EqualsI(arg, L"--crash-test"))
+        {
+            options.mode = Options::Mode::CrashTest;
+        }
         else if (EqualsI(arg, L"--preview"))
         {
             options.mode = Options::Mode::Preview;
@@ -117,21 +123,12 @@ bool RelaunchElevated()
 
 }  // namespace
 
-int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
+// Everything that touches COM lives in this function, so the App object (and the
+// COM objects it owns) is destroyed before CoUninitialize runs.
+int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
 {
-    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
-
-    int argc = 0;
-    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
-    Options options = ParseOptions(argc, argv);
-    LocalFree(argv);
-
     App app;
-    if (!app.Initialize(instance))
-    {
-        CoUninitialize();
-        return 1;
-    }
+    if (!app.Initialize(instance)) return 1;
 
     switch (options.mode)
     {
@@ -141,28 +138,27 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
         app.ScanBlocking();
         if (options.showAbout) app.SetAboutOpen(true);
         if (!options.previewQuery.empty()) app.SetPreviewQuery(options.previewQuery);
-        bool ok = app.RenderScreenshot(options.path, dark);
-        CoUninitialize();
-        return ok ? 0 : 1;
+        return app.RenderScreenshot(options.path, dark) ? 0 : 1;
     }
     case Options::Mode::Dump:
         app.WriteDump(options.path);
-        CoUninitialize();
         return 0;
     case Options::Mode::Apply:
-        CoUninitialize();
         return app.RunSilentApply();
     case Options::Mode::Cleanup:
-        CoUninitialize();
         return app.RunCleanup();
     case Options::Mode::Restore:
-        CoUninitialize();
         return app.RunRestoreAll();
     case Options::Mode::SelfTest:
         return app.RunSelfTest();
     case Options::Mode::Watch:
-        CoUninitialize();
         return app.RunWatch();
+    case Options::Mode::CrashTest:
+    {
+        volatile int* pointer = nullptr;
+        *pointer = 1;  // deliberately fault to verify the minidump handler
+        return 1;
+    }
     case Options::Mode::Preview:
         app.SetCapturePath(options.capturePath);
         return app.RunGui(showCommand);
@@ -174,13 +170,25 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
     if (!IsElevated())
     {
         bool launched = RelaunchElevated();
-        CoUninitialize();
         if (!launched)
             MessageBoxW(nullptr, i18n::T(L"error.elevation"), i18n::T(L"app.title"), MB_OK | MB_ICONWARNING);
         return launched ? 0 : 1;
     }
 
-    int result = app.RunGui(showCommand);
+    return app.RunGui(showCommand);
+}
+
+int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
+{
+    crash::Install();
+    CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
+
+    int argc = 0;
+    wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
+    Options options = ParseOptions(argc, argv);
+    LocalFree(argv);
+
+    int result = RunApplication(instance, showCommand, options);
     CoUninitialize();
     return result;
 }

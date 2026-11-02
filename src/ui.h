@@ -17,6 +17,7 @@ struct UiCallbacks
     std::function<void()> undo;
     std::function<void(int itemIndex)> openLocation;
     std::function<void()> scanDone;
+    std::function<void(bool ok, AutostartMode mode)> autostartDone;
 };
 
 class MainWindow
