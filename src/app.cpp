@@ -643,7 +643,7 @@ int App::RunWatch(bool showTray)
             PostQuitMessage(0);
         };
         if (tray::Start(instance_, i18n::T(L"app.title"), callbacks))
-            tray::SetVisible(store_.Settings().autostart == AutostartMode::Watch);
+            tray::SetVisible(showTray && store_.Settings().autostart == AutostartMode::Watch);
     }
 
     // The watcher adjusts itself when the mode is published: no restart, so the

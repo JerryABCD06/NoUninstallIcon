@@ -106,7 +106,7 @@ managed shortcut its original attributes back.
 | *(none)* | Normal window. Relaunches itself elevated once. |
 | `--apply` | Apply the stored list silently and exit (used by the sign-in task). |
 | `--watch`, `--background` | Apply once, then watch both Start menu trees and re-apply on change. Owns the tray icon. |
-| `--background --no-tray` | Same, without a tray icon. |
+| `--background --no-tray` | Same, and never shows an icon whatever the mode says. |
 | `--restore` | Restore every managed shortcut and forget them. |
 | `--cleanup` | Remove the sign-in task, then `--restore` (used by the uninstaller). |
 | `--screenshot <png> [--theme light\|dark] [--about]` | Off-screen render of the window, for testing. |
@@ -117,11 +117,56 @@ managed shortcut its original attributes back.
 `--screenshot`, `--capture`, `--dump` and `--selftest` never change anything and do
 not request elevation.
 
+## How the pieces agree
+
+There is exactly one piece of persisted truth: `state.dat`. Everything else is
+derived from it and can be rebuilt from it.
+
+| Mode | Sign-in task | Watcher process | Tray icon |
+|---|---|---|---|
+| Off | none | none | none |
+| Once | `--apply` | none | none |
+| Watch | `--background` | one | shown |
+| Watch (no tray) | `--background --no-tray` | one | none |
+
+The mode travels through a small shared section (`Local\NoUninstallIcon.State`:
+a version and the mode) plus a manual-reset event
+(`Local\NoUninstallIcon.Changed`). The version makes a stale or out-of-order
+delivery harmless; the manual reset means a change published while nobody was
+listening is still seen later. Shared memory is used rather than a window
+message because the watcher runs elevated and window messages are filtered
+between integrity levels.
+
+Ownership is what stops the two processes undoing each other:
+
+- **The window** writes the task, writes the state file, and decides whether a
+  watcher should exist.
+- **The watcher** owns its icon, applies the hidden attributes, and exits when
+  the published mode no longer wants it. It never writes the task.
+- **Repairs never change the mode.** Re-adding a lost icon or starting a missing
+  watcher is derived work; only the dropdown and the tray's Quit touch the mode.
+
+Reconciliation happens on:
+
+| Trigger | Who | What it fixes |
+|---|---|---|
+| Start-up | window | re-creates a missing task, starts a missing watcher |
+| Mode change | window → watcher | watcher adds or removes its icon, or exits; no restart |
+| `TaskbarCreated` | watcher | re-adds the icon after Explorer restarts |
+| Tray Quit | watcher | closes the window first, waits for it, then exits; the mode is left alone |
+
+A watcher that dies while the window is closed is only noticed at the next
+start-up or the next sign-in. There is no third watchdog process, by design.
+
+Only the mode travels in the broadcast; the shortcut records are still read from
+disk when the watcher applies them, because a few hundred records do not belong
+in a message.
+
 ## The tray icon
 
 `src/tray.cpp` owns it; nothing else in the program touches `Shell_NotifyIcon`.
 
-- The icon window is a real (never shown) top-level window. A message-only window
+- The icon window is always created, and whether an icon appears follows the mode,\n  so changing modes never restarts the process.\n- The icon window is a real (never shown) top-level window. A message-only window
   looks fine but the shell cannot deliver clicks to it.
 - After every `NIM_ADD` the icon switches to `NOTIFYICON_VERSION_4`. That matters:
   in version 4 a right click arrives as **`WM_CONTEXTMENU` in the low word of the

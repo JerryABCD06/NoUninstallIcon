@@ -49,7 +49,6 @@ private:
     void ShowToast(const std::wstring& text, bool undoable);
 
     std::wstring capturePath_;
-    std::atomic<unsigned> autostartGeneration_{0};
     int previewFocus_ = -1;
     HINSTANCE instance_ = nullptr;
     Model model_;
