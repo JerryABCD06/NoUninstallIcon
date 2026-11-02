@@ -267,6 +267,18 @@ void App::HandleAutostart(AutostartMode mode)
     std::thread([hwnd, mode]() {
         CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
         bool ok = (mode == AutostartMode::Off) ? RemoveAutostart() : InstallAutostart(mode);
+
+        // Watch modes own a long-running process; the others do not, so ask any
+        // instance still running from before to exit.
+        if (ok && mode != AutostartMode::Watch && mode != AutostartMode::Silent)
+        {
+            HANDLE stop = OpenEventW(EVENT_MODIFY_STATE, FALSE, L"Local\\NoUninstallIcon.Stop");
+            if (stop)
+            {
+                SetEvent(stop);
+                CloseHandle(stop);
+            }
+        }
         CoUninitialize();
         if (hwnd) PostMessageW(hwnd, WM_APP_AUTOSTART_DONE, ok ? 1u : 0u, static_cast<LPARAM>(mode));
     }).detach();
@@ -574,6 +586,19 @@ int App::RunWatch(bool showTray)
     };
     std::thread userWatcher(watcher, FOLDERID_Programs);
     std::thread machineWatcher(watcher, FOLDERID_CommonPrograms);
+
+    // The window process signals this event when the mode no longer needs a
+    // background, so switching the setting off also stops the running instance.
+    const DWORD loopThread = GetCurrentThreadId();
+    HANDLE stopEvent = CreateEventW(nullptr, TRUE, FALSE, L"Local\\NoUninstallIcon.Stop");
+    if (stopEvent)
+    {
+        ResetEvent(stopEvent);
+        std::thread([stopEvent, loopThread]() {
+            WaitForSingleObject(stopEvent, INFINITE);
+            PostThreadMessageW(loopThread, WM_QUIT, 0, 0);
+        }).detach();
+    }
 
     MSG message{};
     while (GetMessageW(&message, nullptr, 0, 0) > 0)
