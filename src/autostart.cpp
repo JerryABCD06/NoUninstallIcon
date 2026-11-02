@@ -185,7 +185,7 @@ bool InstallAutostart(AutostartMode mode)
     }
     Bstr exePath(GetExePath());
     exec->put_Path(exePath);
-    Bstr arguments(mode == AutostartMode::Once ? L"--apply" : (mode == AutostartMode::Silent ? L"--background --no-tray" : L"--background"));
+    Bstr arguments(mode == AutostartMode::Once ? L"--apply" : L"--background");
     exec->put_Arguments(arguments);
 
     ComPtr<ITaskSettings> settings;
