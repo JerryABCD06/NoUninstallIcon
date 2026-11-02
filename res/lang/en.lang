@@ -78,3 +78,6 @@ a11y.list=Start menu shortcuts
 a11y.item.hidden=Hidden
 a11y.item.visible=Not hidden
 a11y.item.external=Hidden elsewhere
+toast.hiddenItem=“{0}” will no longer appear in the Start menu.
+toast.shownItem=“{0}” will appear in the Start menu again.
+toast.stillHiddenItem=This tool no longer hides “{0}”, but something else still does.

@@ -78,3 +78,6 @@ a11y.list=スタートメニューのショートカット
 a11y.item.hidden=非表示
 a11y.item.visible=表示
 a11y.item.external=他で非表示
+toast.hiddenItem=「{0}」はスタート メニューに表示されなくなります。
+toast.shownItem=「{0}」は再びスタート メニューに表示されます。
+toast.stillHiddenItem=このツールは「{0}」を隠さなくなりましたが、他の方法で非表示のままです。

@@ -132,7 +132,7 @@ void App::HandleToggle(int itemIndex, bool hidden)
             last_ = {{item.key}, true, true};
             NotifyShellItem(item.path);
             store_.Save();
-            ShowToast(i18n::Tf(L"toast.hidden", {L"1"}), true);
+            ShowToast(i18n::Tf(L"toast.hiddenItem", {item.displayName}), true);
         }
         else
         {
@@ -154,7 +154,11 @@ void App::HandleToggle(int itemIndex, bool hidden)
             last_ = {{item.key}, false, true};
             NotifyShellItem(item.path);
             store_.Save();
-            ShowToast(i18n::Tf(L"toast.unhidden", {L"1"}), true);
+            // A shortcut that was already hidden before this tool touched it stays
+            // hidden; say so instead of letting the user think nothing happened.
+            ShowToast(i18n::Tf(originallyHidden ? L"toast.stillHiddenItem" : L"toast.shownItem",
+                               {item.displayName}),
+                      true);
         }
         else
         {

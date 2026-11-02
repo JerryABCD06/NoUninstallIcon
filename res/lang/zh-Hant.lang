@@ -78,3 +78,6 @@ a11y.list=開始功能表捷徑
 a11y.item.hidden=已隱藏
 a11y.item.visible=未隱藏
 a11y.item.external=已被其他方式隱藏
+toast.hiddenItem=「{0}」不會再顯示在「開始」功能表中。
+toast.shownItem=「{0}」將重新顯示在「開始」功能表中。
+toast.stillHiddenItem=本軟體不再隱藏「{0}」，但它仍被其他方式隱藏。

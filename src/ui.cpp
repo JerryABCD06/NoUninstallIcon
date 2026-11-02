@@ -478,7 +478,8 @@ MainWindow::Layout MainWindow::ComputeLayout() const
     float labelRight = layout.autostartCombo.left - 8.0f;
     layout.autostartLabel = Rect(labelRight - autostartLabelWidth_, midY - 12.0f, labelRight, midY + 12.0f);
 
-    float toastWidth = std::min(560.0f, width - 64.0f);
+    // Wider than before: the toast now carries a shortcut name.
+    float toastWidth = std::min(680.0f, width - 64.0f);
     layout.toast = Rect((width - toastWidth) * 0.5f, layout.footer.top - 60.0f,
                         (width + toastWidth) * 0.5f, layout.footer.top - 16.0f);
     layout.toastUndo = Rect(layout.toast.right - 96.0f, layout.toast.top + 8.0f, layout.toast.right - 16.0f,
