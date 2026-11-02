@@ -11,12 +11,12 @@ struct LanguageDef
     int resourceId;
 };
 
-constexpr LanguageDef kLanguages[] = {
-    {L"en", 101},
-    {L"zh-Hans", 102},
-    {L"zh-Hant", 103},
-    {L"ja", 104},
-};
+// Resource ids are allocated per language file; the table is discovered at
+// startup so adding a language is a new .lang plus one RCDATA line.
+constexpr int kFirstLanguageId = 101;
+constexpr int kLastLanguageId = 160;
+
+std::vector<LanguageDef> gDefinitions;
 
 using Table = std::unordered_map<std::wstring, std::wstring>;
 
@@ -24,6 +24,7 @@ Table gEnglish;
 Table gCurrent;
 std::wstring gCurrentCode = L"en";
 std::vector<LanguageInfo> gAvailable;
+std::vector<std::wstring> gDefinitionCodes;
 std::wstring gLocaleName = L"en-US";
 std::wstring gNativeName;
 
@@ -132,7 +133,7 @@ bool ApplyLanguage(const std::wstring& code)
 {
     Table loaded;
     int resourceId = 0;
-    for (const auto& def : kLanguages)
+    for (auto& def : gDefinitions)
     {
         if (EqualsI(def.code, code))
         {
@@ -160,7 +161,7 @@ bool ApplyLanguage(const std::wstring& code)
 void BuildLanguageList()
 {
     if (!gAvailable.empty()) return;
-    for (const auto& def : kLanguages)
+    for (auto& def : gDefinitions)
     {
         Table temp;
         if (!LoadResource(def.resourceId, temp)) continue;
@@ -176,7 +177,19 @@ void BuildLanguageList()
 
 void Init(const std::wstring& preferredCode)
 {
-    LoadResource(kLanguages[0].resourceId, gEnglish);
+    LoadResource(kFirstLanguageId, gEnglish);
+
+    // Discover every embedded language by probing its resource id.
+    for (int id = kFirstLanguageId; id <= kLastLanguageId; ++id)
+    {
+        Table probe;
+        if (!LoadResource(id, probe)) continue;
+        auto code = probe.find(L"lang.code");
+        if (code == probe.end() || code->second.empty()) continue;
+        gDefinitions.push_back({L"", id});
+        gDefinitionCodes.push_back(code->second);
+    }
+
     BuildLanguageList();
 
     std::wstring wanted = preferredCode.empty() ? SystemLanguageCode() : preferredCode;
