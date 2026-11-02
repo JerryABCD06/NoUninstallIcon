@@ -101,3 +101,4 @@ menu.show=顯示
 menu.open_shortcut=開啟捷徑位置
 menu.open_target=開啟目標檔案的位置
 autostart.portable_note=可攜模式：啟用後會在可攜目錄之外建立登入工作
+toast.watchOn=將會監聽並即時隱藏被軟體安裝等行為恢復顯示的圖示，重新啟動裝置或重新啟動本工具後生效。

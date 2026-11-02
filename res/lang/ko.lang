@@ -106,3 +106,4 @@ menu.open_shortcut=바로 가기 위치 열기
 menu.open_target=대상 파일 위치 열기
 
 autostart.portable_note=포터블 모드: 이 폴더 밖에 로그인 작업을 만듭니다
+toast.watchOn=설치 프로그램이 아이콘을 되살리면 즉시 다시 숨깁니다. Windows 또는 이 도구를 다시 시작한 뒤 적용됩니다.
