@@ -2469,6 +2469,13 @@ void MainWindow::AnnounceFocus()
     // and, for the list, the new row text.
     PublishAccessibility(ComputeLayout());
     a11y::NotifyFocus(element);
+
+    // An empty result list has no items for a screen reader to land on, so the
+    // focus event alone produces silence. Announce the message directly.
+    if (focus_ == FocusTarget::List && (!model_ || model_->RowCount() == 0))
+    {
+        a11y::Notify(query_.empty() ? i18n::T(L"status.empty") : i18n::Tf(L"empty.search", {query_}));
+    }
 }
 void MainWindow::Announce(const std::wstring& text)
 {
