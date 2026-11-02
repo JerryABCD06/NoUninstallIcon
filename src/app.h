@@ -45,7 +45,7 @@ private:
     void HandleOpenLocation(int itemIndex);
     void HandleUndo();
     void HandleRescan();
-    int ApplyDesired(bool notify);
+    int ApplyDesired(bool notify, int* failed = nullptr);
     void ShowToast(const std::wstring& text, bool undoable);
 
     std::wstring capturePath_;

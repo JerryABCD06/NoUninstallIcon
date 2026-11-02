@@ -436,8 +436,9 @@ void App::ShowToast(const std::wstring& text, bool undoable)
     if (window_.Handle()) window_.ShowToast(text, undoable);
 }
 
-int App::ApplyDesired(bool notify)
+int App::ApplyDesired(bool notify, int* failed)
 {
+    int failedHere = 0;
     int changed = 0;
     for (auto& record : store_.Records())
     {
@@ -449,15 +450,24 @@ int App::ApplyDesired(bool notify)
             continue;
         }
         if ((attributes & FILE_ATTRIBUTE_HIDDEN) != 0) continue;
-        if (SetShortcutHidden(record.path, true) == ApplyStatus::Ok)
+        const ApplyStatus status = SetShortcutHidden(record.path, true);
+        if (status == ApplyStatus::Ok)
         {
             record.lastApplied = NowSeconds();
             if (notify) NotifyShellItem(record.path);
             ++changed;
         }
+        else
+        {
+            // A sign-in run that could not hide something must say so, or the
+            // scheduler reports success for work that never happened.
+            LogLineF(L"  could not hide (%d): %s", static_cast<int>(status), record.path.c_str());
+            ++failedHere;
+        }
     }
     // Deliberately not saved: a watcher that rewrites the file also rewrites
     // the settings it does not own, and can revert a mode change made meanwhile.
+    if (failed) *failed = failedHere;
     return changed;
 }
 
@@ -606,11 +616,12 @@ int App::RunSilentApply()
         LogLine(L"state lock unavailable, leaving the state alone");
         return 1;
     }
-    store_.Load();  // the file, not our memory, is the truth
     MergeRecords();  // and the list has to show what the file now says
-    int changed = ApplyDesired(true);
-    LogLineF(L"Silent apply finished, %d shortcut(s) re-hidden", changed);
-    return 0;
+    int failed = 0;
+    const bool loaded = store_.Load();
+    int changed = ApplyDesired(true, &failed);
+    LogLineF(L"Silent apply finished, %d re-hidden, %d failed, state readable=%d", changed, failed, loaded ? 1 : 0);
+    return (loaded && failed == 0) ? 0 : 1;
 }
 
 int App::RunRestoreAll()
