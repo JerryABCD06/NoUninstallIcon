@@ -1149,7 +1149,7 @@ void App::WriteDump(const std::wstring& path)
     ScanStartMenu(outcome);
     CoUninitialize();
 
-    std::wstring text = L"NoUninstallIcon scan dump\r\n";
+    std::wstring text = L"No Uninstall Icon scan dump\r\n";
     text += Fmt(L"total=%d skipped=%d\r\n", static_cast<int>(outcome.items.size()), outcome.skipped);
     for (const auto& item : outcome.items)
     {

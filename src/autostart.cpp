@@ -128,7 +128,7 @@ bool InstallAutostart(AutostartMode mode)
     ComPtr<IRegistrationInfo> registration;
     if (SUCCEEDED(definition->get_RegistrationInfo(registration.GetAddressOf())))
     {
-        Bstr author(L"NoUninstallIcon");
+        Bstr author(L"No Uninstall Icon");  // shown in Task Scheduler's Author column
         registration->put_Author(author);
         Bstr description(L"Keeps selected Start menu shortcuts hidden.");
         registration->put_Description(description);

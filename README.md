@@ -118,16 +118,16 @@ managed shortcut its original attributes back.
 | `--background --no-tray` | Same, and never shows an icon whatever the mode says. |
 | `--restore` | Restore every managed shortcut and forget them. |
 | `--cleanup` | Remove the sign-in task, then `--restore` (used by the uninstaller). |
-
-The watcher obeys the stored mode, it does not choose it: with the mode set to
-*Off* or *Once* it applies nothing and exits immediately, because those modes are
-defined as having no watcher. `--watch` and `--background` are the way the sign-in
-task starts the watcher, not a way to switch the mode on from a command line; the
-mode is set in the window and stored in `state.dat`.
 | `--screenshot <png> [--theme light\|dark] [--about]` | Off-screen render of the window, for testing. |
 | `--capture <png>` | Show the real window, grab it to PNG, exit. |
 | `--dump <txt>` | Scan and write a classification report. |
 | `--selftest` | Hide/unhide a fixture entry and verify the invariants. |
+
+The watcher obeys the stored mode, it does not choose it. With the mode set to
+*Off* or *Once* it applies nothing and returns, because those modes are defined as
+having no watcher; only *Watch* and *Silent* want one. `--background` is what the
+sign-in task runs, `--watch` is an accepted alias, and neither switches the mode
+on: the mode is set in the window and stored in `state.dat`.
 
 `--screenshot`, `--dump` and `--selftest` do not request elevation. `--screenshot`
 and `--dump` change nothing. `--selftest` hides and unhides a fixture entry, so
