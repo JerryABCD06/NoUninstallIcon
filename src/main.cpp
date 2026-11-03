@@ -32,6 +32,7 @@ struct Options
     int previewFocus = -1;
     int previewScroll = -1;
     bool showAbout = false;
+    bool log = false;      // --log: write log.txt, off by default
     bool noTray = false;   // --background --no-tray: watch without a tray icon
     bool themeSpecified = false;
     bool darkTheme = false;
@@ -70,6 +71,10 @@ Options ParseOptions(int argc, wchar_t** argv)
         else if (EqualsI(arg, L"--restore"))
         {
             options.mode = Options::Mode::Restore;
+        }
+        else if (EqualsI(arg, L"--log"))
+        {
+            options.log = true;
         }
         else if (EqualsI(arg, L"--selftest"))
         {
@@ -230,6 +235,14 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
     int argc = 0;
     wchar_t** argv = CommandLineToArgvW(GetCommandLineW(), &argc);
     Options options = ParseOptions(argc, argv);
+    // The log is a debugging aid: off unless asked for, here or by environment.
+    bool logging = options.log;
+    if (!logging)
+    {
+        wchar_t value[8]{};
+        logging = GetEnvironmentVariableW(L"NOUI_LOG", value, 8) > 0;
+    }
+    SetLogEnabled(logging);
     LocalFree(argv);
 
     int result = RunApplication(instance, showCommand, options);

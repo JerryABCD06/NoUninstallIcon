@@ -32,6 +32,9 @@ bool IsSystemDarkMode();
 DWORD GetAccentColorBgra();
 bool IsElevated();
 
+// Off by default: the log is a debugging tool, so it is only written when it is
+// enabled with --log or NOUI_LOG=1.
+void SetLogEnabled(bool enabled);
 void LogLine(const std::wstring& text);
 void LogLineF(const wchar_t* format, ...);
 

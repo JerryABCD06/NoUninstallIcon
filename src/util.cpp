@@ -274,8 +274,16 @@ bool IsElevated()
     return elevated;
 }
 
+namespace { std::atomic<bool> gLogEnabled{false}; }
+
+void SetLogEnabled(bool enabled)
+{
+    gLogEnabled.store(enabled);
+}
+
 void LogLine(const std::wstring& text)
 {
+    if (!gLogEnabled.load()) return;
     static std::mutex mutex;
     std::lock_guard<std::mutex> guard(mutex);
 

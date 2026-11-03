@@ -62,7 +62,7 @@ was already hidden before this tool touched it stays hidden when it is released.
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat` | Managed records and settings (tab separated, escaped, atomically replaced) |
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat.bak` | Copy of the previous save, used if the primary file is damaged |
 | `%LOCALAPPDATA%\NoUninstallIcon\state.lock` | Empty file used for the cross-session lock |
-| `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Append-only log, trimmed to 1 MB when the program starts |
+| `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Written only with `--log` or `NOUI_LOG=1`; trimmed to 1 MB |
 | Task `NoUninstallIcon-AutoHide` | Sign-in task, created only when the user enables it |
 
 ## Portable mode
@@ -122,6 +122,7 @@ managed shortcut its original attributes back.
 | `--capture <png>` | Show the real window, grab it to PNG, exit. |
 | `--dump <txt>` | Scan and write a classification report. |
 | `--selftest` | Hide/unhide a fixture entry and verify the invariants. |
+| `--log` | Write `log.txt` for this run. Also enabled when `NOUI_LOG=1` is set. |
 
 The watcher obeys the stored mode, it does not choose it. With the mode set to
 *Off* or *Once* it applies nothing and returns, because those modes are defined as
@@ -294,4 +295,6 @@ MIT. Copyright (c) 2026 王云正 (JerryABCD06). See [LICENSE](LICENSE).
 The program installs a top-level exception filter. On an unhandled exception it
 writes `crash-YYYYMMDD-HHMMSS.dmp` plus `crash.txt` (exception code and faulting
 address) next to `state.dat`, then exits. Attach the dump when reporting a problem —
-it is the only way to tell a threading bug from a drawing bug.
+it is the only way to tell a threading bug from a drawing bug. The ordinary log is
+off by default; run with `--log`, or set `NOUI_LOG=1`, when you need the sequence
+of events that led there.
