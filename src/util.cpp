@@ -281,6 +281,11 @@ void SetLogEnabled(bool enabled)
     gLogEnabled.store(enabled);
 }
 
+bool LogEnabled()
+{
+    return gLogEnabled.load();
+}
+
 void LogLine(const std::wstring& text)
 {
     if (!gLogEnabled.load()) return;

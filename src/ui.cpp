@@ -1195,7 +1195,9 @@ void MainWindow::OnMouseMove(int x, int y)
         return;
     }
 
-    int row = RowAtPoint(fy, nullptr);
+    D2D1_RECT_F hoverBand{};
+    // A row hidden under a pinned header is not hovered: it is not there.
+    int row = (HeaderGroupAtPoint(fy, &hoverBand) >= 0) ? -1 : RowAtPoint(fy, nullptr);
     int control = 0;
     if (row < 0)
     {

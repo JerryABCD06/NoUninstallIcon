@@ -1,5 +1,4 @@
 #include "app.h"
-
 #include "apply.h"
 #include "autostart.h"
 #include "i18n.h"
@@ -630,8 +629,9 @@ int App::RunGui(int showCommand)
             }
             if (!alreadyRunning)
             {
+                const wchar_t* watcherArguments = LogEnabled() ? L"--background --log" : L"--background";
                 const INT_PTR started = reinterpret_cast<INT_PTR>(
-                    ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL));
+                    ShellExecuteW(nullptr, L"open", GetExePath().c_str(), watcherArguments, nullptr, SW_SHOWNORMAL));
                 if (started <= 32)
                 {
                     launched = false;
@@ -686,8 +686,9 @@ int App::RunGui(int showCommand)
         }
         if (!alreadyRunning)
         {
+            const wchar_t* watcherArguments = LogEnabled() ? L"--background --log" : L"--background";
             const INT_PTR started = reinterpret_cast<INT_PTR>(
-                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), L"--background", nullptr, SW_SHOWNORMAL));
+                ShellExecuteW(nullptr, L"open", GetExePath().c_str(), watcherArguments, nullptr, SW_SHOWNORMAL));
             if (started <= 32)
             {
                 LogLineF(L"watcher launch failed: %lld", static_cast<long long>(started));
@@ -814,6 +815,7 @@ int App::RunSelfTest()
     if (model_.items.empty())
     {
         report += L"FAIL: nothing scanned\r\n";
+        EnsureDirectory(GetDataDir());
         WriteWholeFileAtomic(JoinPath(GetDataDir(), L"selftest.txt"), Narrow(report));
         return 1;
     }
@@ -867,6 +869,7 @@ int App::RunSelfTest()
     }
 
     report += ok ? L"RESULT: ok\r\n" : L"RESULT: mismatch\r\n";
+    EnsureDirectory(GetDataDir());
     WriteWholeFileAtomic(JoinPath(GetDataDir(), L"selftest.txt"), Narrow(report));
     LogLine(L"Self test finished");
     return ok ? 0 : 1;

@@ -118,7 +118,7 @@ Options ParseOptions(int argc, wchar_t** argv)
     return options;
 }
 
-bool RelaunchElevated()
+bool RelaunchElevated(const wchar_t* parameters)
 {
     const std::wstring exePath = GetExePath();  // keep the buffer alive for the call
     if (exePath.empty()) return false;
@@ -128,6 +128,7 @@ bool RelaunchElevated()
     info.cbSize = sizeof(info);
     info.lpVerb = L"runas";
     info.lpFile = exePath.c_str();
+    info.lpParameters = parameters;
     info.nShow = SW_SHOWNORMAL;
     info.fMask = SEE_MASK_NOCLOSEPROCESS | SEE_MASK_FLAG_NO_UI;
     if (!ShellExecuteExW(&info))
@@ -196,7 +197,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
 
     if (!IsElevated() && !skipElevation)
     {
-        bool launched = RelaunchElevated();
+        bool launched = RelaunchElevated(options.log ? L"--log" : nullptr);
         if (!launched)
             MessageBoxW(nullptr, i18n::T(L"error.elevation"), i18n::T(L"app.title"), MB_OK | MB_ICONWARNING);
         return launched ? 0 : 1;
