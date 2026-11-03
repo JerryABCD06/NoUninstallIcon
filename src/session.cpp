@@ -1,6 +1,8 @@
 #include "session.h"
 
 #include "common.h"
+
+#include <sddl.h>
 #include "util.h"
 
 namespace {
@@ -25,8 +27,33 @@ bool session::Init()
 {
     if (gChanged) return true;
 
+    // An elevated window creates these objects; a command-line run at medium
+    // integrity (the uninstaller's --cleanup, for example) still has to open
+    // them, otherwise its "Off" publish is silently lost. An explicit
+    // descriptor with a low mandatory label makes both sides able to attach.
+    static SECURITY_ATTRIBUTES attributes{};
+    static bool haveAttributes = false;
+    if (!haveAttributes)
+    {
+        PSECURITY_DESCRIPTOR descriptor = nullptr;
+        if (ConvertStringSecurityDescriptorToSecurityDescriptorW(L"D:(A;;GA;;;WD)S:(ML;;NW;;;LW)",
+                                                                 SDDL_REVISION_1, &descriptor, nullptr))
+        {
+            attributes.nLength = sizeof(attributes);
+            attributes.lpSecurityDescriptor = descriptor;
+            attributes.bInheritHandle = FALSE;
+            haveAttributes = true;
+        }
+        else
+        {
+            LogLineF(L"session: could not build the descriptor (err=%lu)", GetLastError());
+        }
+    }
+    SECURITY_ATTRIBUTES* security = haveAttributes ? &attributes : nullptr;
+
     // Create or open both objects; either process may be first.
-    gMapping = CreateFileMappingW(INVALID_HANDLE_VALUE, nullptr, PAGE_READWRITE, 0, sizeof(SharedState), kSectionName);
+    gMapping = CreateFileMappingW(INVALID_HANDLE_VALUE, security, PAGE_READWRITE, 0, sizeof(SharedState),
+                                  kSectionName);
     if (!gMapping) return false;
 
     gState = static_cast<SharedState*>(MapViewOfFile(gMapping, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(SharedState)));
@@ -37,7 +64,7 @@ bool session::Init()
         return false;
     }
 
-    gChanged = CreateEventW(nullptr, TRUE, FALSE, kEventName);
+    gChanged = CreateEventW(security, TRUE, FALSE, kEventName);
     if (!gChanged)
     {
         UnmapViewOfFile(gState);

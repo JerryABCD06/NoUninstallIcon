@@ -90,6 +90,9 @@ void App::MergeRecords()
         {
             item.managed = false;
             item.desiredHidden = false;
+            DWORD orphanAttributes = 0;
+            if (ReadAttributes(item.path, orphanAttributes))
+                item.hiddenOnDisk = (orphanAttributes & FILE_ATTRIBUTE_HIDDEN) != 0;
             continue;
         }
         item.managed = true;
@@ -167,7 +170,11 @@ void App::HandleToggle(int itemIndex, bool hidden)
                 const bool wasHidden = (attributes & FILE_ATTRIBUTE_HIDDEN) != 0;
                 const ApplyStatus undone = SetShortcutHidden(item.path, wasHidden);
                 const bool stillManaged = (undone != ApplyStatus::Ok);
-                if (!stillManaged && created) store_.Erase(item.key);
+                if (!stillManaged && created)
+                {
+                    store_.Erase(item.key);
+                    store_.Save();  // the intent record must not outlive the attempt
+                }
                 item.managed = stillManaged;
                 item.desiredHidden = stillManaged;
                 item.hiddenOnDisk = stillManaged ? true : wasHidden;
@@ -184,7 +191,11 @@ void App::HandleToggle(int itemIndex, bool hidden)
         }
         else
         {
-            if (created) store_.Erase(item.key);
+            if (created)
+            {
+                store_.Erase(item.key);
+                store_.Save();  // the intent record must not outlive the attempt
+            }
             ShowToast(i18n::Tf(L"toast.failed", {L"1"}), false);
         }
     }
@@ -348,7 +359,17 @@ void App::HandleHideGroup(bool hide)
         if (hide == (item.managed && item.desiredHidden)) continue;
         if (hide)
         {
-            bool createdHere = false;
+            // A record created by the pre-pass belongs to this batch, so a hide
+            // that fails has to drop it again; one that existed before must stay.
+            bool createdHere = true;
+            for (const auto& previous : beforeRecords)
+            {
+                if (previous.key == item.key)
+                {
+                    createdHere = false;
+                    break;
+                }
+            }
             StoredRecord* record = store_.Find(item.key);
             DWORD attributes = 0;
             ReadAttributes(item.path, attributes);
@@ -360,7 +381,6 @@ void App::HandleHideGroup(bool hide)
                 record->displayName = item.displayName;
                 record->target = item.target;
                 record->firstSeen = NowSeconds();
-                createdHere = true;
             }
             const ApplyStatus hideStatus = SetShortcutHidden(item.path, true);
             if (hideStatus == ApplyStatus::Ok)

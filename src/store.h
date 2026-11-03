@@ -25,6 +25,8 @@ struct AppSettings
 // Held across a load-modify-save transaction so two processes cannot interleave:
 // the window, the watcher and the command-line modes all take it, because a
 // whole-file save from one of them would otherwise overwrite the others.
+// The named mutex alone is per-session while state.dat is per-user, so a second
+// session (or a portable copy on a share) is excluded by a file lock instead.
 class StateLock
 {
 public:
@@ -37,6 +39,8 @@ public:
 
 private:
     HANDLE mutex_ = nullptr;
+    HANDLE lockFile_ = nullptr;
+    bool fileLocked_ = false;
     bool held_ = false;
 };
 

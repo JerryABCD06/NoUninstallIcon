@@ -167,13 +167,50 @@ StateLock::StateLock()
         LogLineF(L"state lock: cannot create (err=%lu)", GetLastError());
         return;
     }
-    const DWORD wait = WaitForSingleObject(mutex_, 5000);
+    const DWORD wait = WaitForSingleObject(mutex_, 2500);
     held_ = (wait == WAIT_OBJECT_0 || wait == WAIT_ABANDONED);
-    if (!held_) LogLineF(L"state lock: not acquired (%lu)", wait);
+    if (!held_)
+    {
+        LogLineF(L"state lock: not acquired (%lu)", wait);
+        return;
+    }
+
+    // The mutex is per-session, and state.dat is per-user: a second session, or
+    // a portable copy used from another machine, would not be excluded by it.
+    // A byte-range lock on a file next to the state covers all of those cases.
+    const std::wstring lockPath = JoinPath(GetDataDir(), L"state.lock");
+    lockFile_ = CreateFileW(lockPath.c_str(), GENERIC_READ | GENERIC_WRITE,
+                            FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
+                            OPEN_ALWAYS, FILE_ATTRIBUTE_HIDDEN, nullptr);
+    if (lockFile_ != INVALID_HANDLE_VALUE)
+    {
+        OVERLAPPED overlay{};
+        for (int attempt = 0; attempt < 25 && !fileLocked_; ++attempt)
+        {
+            fileLocked_ = LockFileEx(lockFile_, LOCKFILE_EXCLUSIVE_LOCK | LOCKFILE_FAIL_IMMEDIATELY, 0, 1, 0,
+                                     &overlay) != 0;
+            if (!fileLocked_) Sleep(100);
+        }
+    }
+    if (!fileLocked_)
+    {
+        // Best effort: the in-session mutex still applies, and a read-only data
+        // directory must not make the whole program stop working.
+        LogLineF(L"state lock: no file lock (err=%lu), relying on the session mutex", GetLastError());
+    }
 }
 
 StateLock::~StateLock()
 {
+    if (lockFile_ && lockFile_ != INVALID_HANDLE_VALUE)
+    {
+        if (fileLocked_)
+        {
+            OVERLAPPED overlay{};
+            UnlockFileEx(lockFile_, 0, 1, 0, &overlay);
+        }
+        CloseHandle(lockFile_);
+    }
     if (held_) ReleaseMutex(mutex_);
     if (mutex_) CloseHandle(mutex_);
 }
