@@ -13,6 +13,19 @@ surface so it can use the Windows 11 Mica backdrop.
 |---|---|---|
 | ![Dark](docs/screenshot-dark.png) | ![About](docs/about.png) | ![Window](docs/window.png) |
 
+## Documentation
+
+This README is the overview. The details live in `docs/`:
+
+| Document | What is in it |
+|---|---|
+| [docs/architecture.md](docs/architecture.md) | the processes, the state machine, the shared objects, the locking and reconciliation rules, the threading map, a module-by-module map |
+| [docs/state-file.md](docs/state-file.md) | every file the program writes: `state.dat` grammar and escaping, `state.lock`, the log, crash dumps, what is *not* stored |
+| [docs/win32-notes.md](docs/win32-notes.md) | the parts that are only difficult on Windows: the tray protocol version 4, integrity levels and UIPI, DPI, DirectComposition and Mica, hand-written hit testing, UI Automation, the scheduled task's exact settings |
+| [docs/build.md](docs/build.md) | building, where the version lives, the signing policy, packaging, the uninstall order, the language-file format |
+| [docs/testing.md](docs/testing.md) | the environment variables, the test modes, a self-test recipe, what cannot be checked headlessly, a five-minute manual pass |
+| [docs/troubleshooting.md](docs/troubleshooting.md) | symptom → cause → check, starting with how to turn the log on |
+
 ## What it does
 
 * Lists every `.lnk` and `.url` under the per-user and all-users Start menu trees
@@ -80,6 +93,8 @@ from a removable drive will break once the drive letter changes.
 
 ## Build
 
+Packaging, versioning and signing are covered in [docs/build.md](docs/build.md).
+
 Requirements: MSVC (VS 2022/2026 with the C++ desktop workload) and the Windows 10/11
 SDK. No NuGet packages are used.
 
@@ -98,6 +113,8 @@ build is therefore left unsigned, and `tools\package.ps1` refuses to package a
 signed one.
 
 ## Installer
+
+The uninstall order and the cleanup hook are described in [docs/build.md](docs/build.md).
 
 ```bat
 powershell -File tools\package.ps1        :: installer and portable zip, unsigned
@@ -137,6 +154,8 @@ it. `--capture` renders the real window, which means it also runs the start-up
 reconciliation: use it with a temporary data directory too.
 
 ## How the pieces agree
+
+The full model, including the locking and reconciliation rules, is in [docs/architecture.md](docs/architecture.md).
 
 There is exactly one piece of persisted truth: `state.dat`. Everything else is
 derived from it and can be rebuilt from it.
@@ -223,6 +242,8 @@ considered here and rejected for the memory, not because the complexity is small
 
 ## The tray icon
 
+The protocol details are in [docs/win32-notes.md](docs/win32-notes.md).
+
 `src/tray.cpp` owns it; nothing else in the program touches `Shell_NotifyIcon`.
 
 - The icon window is always created; whether an icon appears follows the mode, so
@@ -256,6 +277,8 @@ The one-shot mode waits 20 s, then applies. Watch mode also reacts to
 hidden within a second.
 
 ## Testing
+
+The environment variables, the test modes and a manual checklist are in [docs/testing.md](docs/testing.md).
 
 ```bat
 set NOUI_DATA_DIR=%TEMP%\noui
@@ -300,3 +323,18 @@ off by default; run with `--log`, or set `NOUI_LOG=1`, when you need the sequenc
 of events that led there. Both survive the self-elevation, and both reach a watcher
 started from the window. A watcher started by the sign-in task never logs, because
 the task has no command line to inherit.
+
+The switch in detail:
+
+| `NOUI_LOG` | `--log` | Log written |
+|---|---|---|
+| unset | absent | no |
+| `1` (or any value but `0`) | absent | yes |
+| unset or `0` | present | yes |
+| `0` | absent | no |
+
+The command-line flag wins over the environment. `NOUI_LOG=0` is useful in a shell
+where the variable is set globally and one run should stay quiet.
+
+There is more in [docs/troubleshooting.md](docs/troubleshooting.md), which starts
+with how to read the log and what each failure looks like.
