@@ -4,6 +4,33 @@ Notable changes, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version numbers follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [Unreleased]
+
+### Fixed
+
+- **Upgrading while the watcher runs left a zombie process.** Windows refuses to replace
+  a running executable, so Setup asks Restart Manager to close the app first; the tray
+  window did not handle `WM_CLOSE`, and `DefWindowProc` destroyed the window without
+  ending the process. The survivor kept the `Local\NoUninstallIcon.Background` mutex, so
+  the icon was gone, hiding went on invisibly, and no new watcher could start
+  (`ERROR_ALREADY_EXISTS`) — even the "launch after install" path could not bring one
+  back. The tray window now handles `WM_CLOSE` and `WM_QUERYENDSESSION` by removing the
+  icon, stopping the watcher threads and exiting.
+
+### Changed
+
+- The installer declares `AppMutex` for the window's and the watcher's single-instance
+  mutexes, so Setup notices a running instance before it touches the executable and asks
+  for it to be closed, instead of failing on a file that is in use.
+
+### Notes
+
+- Deferred to the next version on purpose: no one upgrades *to* 0.1.0, so the defect
+  cannot be reached from the first release.
+- The fix cannot rescue a watcher belonging to 0.1.0, which knows no way to exit except a
+  mode change. Going from 0.1.0 to a later version therefore still needs the watcher
+  stopped first — switch the mode to *Off*, or end the process in Task Manager.
+
 ## [0.1.0] - 2026-11-03
 
 First release.
