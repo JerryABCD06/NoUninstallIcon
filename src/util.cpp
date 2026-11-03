@@ -4,6 +4,8 @@
 #include <share.h>
 #include <sys/stat.h>
 #include <shlobj.h>
+#include <uxtheme.h>
+#include <winternl.h>
 
 std::wstring Widen(std::string_view text)
 {
@@ -255,6 +257,28 @@ bool IsSystemDarkMode()
 
 namespace {
 
+// The dark-mode entry points appeared in Windows 10 1809 (build 17763). Resolving
+// an ordinal succeeds for whatever function happens to live in that slot, so on an
+// older build the call would reach an unrelated export: the build has to be checked
+// before anything is resolved at all.
+bool DarkModeMenuApiAvailable()
+{
+    using RtlGetVersionFn = LONG(WINAPI*)(PRTL_OSVERSIONINFOW);
+    static const bool available = []() {
+        HMODULE ntdll = GetModuleHandleW(L"ntdll.dll");
+        if (!ntdll) return false;
+        const auto rtlGetVersion = reinterpret_cast<RtlGetVersionFn>(GetProcAddress(ntdll, "RtlGetVersion"));
+        if (!rtlGetVersion) return false;
+
+        RTL_OSVERSIONINFOW info{};
+        info.dwOSVersionInfoSize = sizeof(info);
+        if (rtlGetVersion(&info) != 0) return false;  // STATUS_SUCCESS
+        if (info.dwMajorVersion != 10) return info.dwMajorVersion > 10;
+        return info.dwBuildNumber >= 17763;
+    }();
+    return available;
+}
+
 // The theme engine entry points that make classic Win32 popup menus follow the
 // dark mode. They are exported by uxtheme.dll without names, so they can only be
 // resolved by ordinal. Missing them is not an error: the menus simply stay light,
@@ -276,6 +300,8 @@ UxthemeApi& Uxtheme()
     static UxthemeApi api;
     if (api.resolved) return api;
     api.resolved = true;
+
+    if (!DarkModeMenuApiAvailable()) return api;
 
     HMODULE module = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
     if (!module) return api;

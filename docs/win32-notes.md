@@ -43,6 +43,18 @@ They are unnamed exports, so they can only be resolved by ordinal — which is w
 code degrades instead of failing: if `uxtheme.dll` does not export them, the pointers stay
 null and the menus keep their light appearance. Nothing else breaks.
 
+Two conditions are checked before resolving anything:
+
+- **The build number.** These entry points first appeared in Windows 10 1809 (17763).
+  Earlier builds have the same ordinal slots occupied by **different functions**, and
+  `GetProcAddress` returns a pointer for whatever is there, so the "is it null" test
+  would not protect anything. `DarkModeMenuApiAvailable()` reads the real build through
+  `RtlGetVersion` and returns false below 17763, leaving the menus light.
+- **High contrast is deliberately not checked.** Nothing else in the interface honours
+  high-contrast colours — the window paints from its own light/dark palette — so a
+  high-contrast menu would be the only element that did. If the window ever grows
+  high-contrast support, add the `SPI_GETHIGHCONTRAST` test here at the same time.
+
 The window applies this from `ApplyTheme()`, which already runs on `WM_SETTINGCHANGE`, so
 flipping the system theme at run time also changes the menus. The watcher calls it from
 `tray::ShowMenu` because it has no window of its own that would run a theme pass.
