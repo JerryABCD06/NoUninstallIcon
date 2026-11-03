@@ -114,7 +114,9 @@ Source: "..\build\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
 Name: "{group}\{cm:AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{group}\{cm:UninstallProgram,{cm:AppName}}"; Filename: "{uninstallexe}"
+; Deliberately no "uninstall" shortcut: hiding uninstall entries is what this
+; program does. It is removed through Settings > Apps, or by running unins000.exe
+; from the installation folder.
 Name: "{autodesktop}\{cm:AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]

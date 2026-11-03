@@ -24,6 +24,10 @@ bool gVersion4 = false;  // whether the shell accepted the modern protocol
 
 void ShowMenu(POINT anchor)
 {
+    // The menu belongs to this process, so it needs its own dark-mode hint: the
+    // watcher has no other window and never runs the window's theme pass.
+    ApplyNativeDarkMode(gWindow, IsSystemDarkMode());
+
     HMENU menu = CreatePopupMenu();
     if (!menu) return;
 

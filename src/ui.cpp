@@ -283,6 +283,9 @@ void MainWindow::ApplyTheme()
     DwmSetWindowAttribute(hwnd_, DWMWA_SYSTEMBACKDROP_TYPE, &backdrop, sizeof(backdrop));
     MARGINS margins{-1, -1, -1, -1};
     DwmExtendFrameIntoClientArea(hwnd_, &margins);
+    // Popup menus owned by this window are drawn by the theme engine, not by
+    // Direct2D, so they need telling about the dark mode separately.
+    ApplyNativeDarkMode(hwnd_, theme_.dark);
     Invalidate();
 }
 

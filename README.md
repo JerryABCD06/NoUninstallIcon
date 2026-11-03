@@ -168,7 +168,9 @@ powershell -File tools\package.ps1        :: installer and portable zip, unsigne
 Output: `dist\NoUninstallIcon-Setup-0.1.0.exe` and
 `dist\NoUninstallIcon-portable-0.1.0.zip`. The installer follows the system dark/light
 theme, offers all eleven languages the program has, and shows the product name in the
-language chosen for the install. The uninstaller runs
+language chosen for the install. It adds no "uninstall" shortcut to the Start menu:
+that menu is what this program cleans up. Use *Settings → Apps* to remove the product.
+The uninstaller runs
 `NoUninstallIcon.exe --cleanup` first, which deletes the sign-in task and gives every
 managed shortcut its original attributes back.
 

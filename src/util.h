@@ -29,6 +29,9 @@ bool RegReadString(HKEY root, const wchar_t* subKey, const wchar_t* valueName, s
 bool RegWriteDword(HKEY root, const wchar_t* subKey, const wchar_t* valueName, DWORD value);
 
 bool IsSystemDarkMode();
+// Makes classic Win32 pieces owned by this window (popup menus, tooltips) follow
+// the same light/dark choice the window draws with.
+void ApplyNativeDarkMode(HWND window, bool dark);
 DWORD GetAccentColorBgra();
 bool IsElevated();
 

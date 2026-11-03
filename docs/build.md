@@ -107,6 +107,11 @@ and the Apps & Features entry. The two constraints that come with this:
 - The installation directory stays `{autopf}\NoUninstallIcon`. A localized directory name
   would move an upgrade to a second folder when the language changes.
 
+There is deliberately **no uninstall shortcut** in the Start menu. A program whose whole
+purpose is to remove "卸载 …" entries from that menu should not add one; the product is
+removed through *Settings → Apps → Installed apps*, or by running `unins000.exe` from the
+installation folder.
+
 Uninstall order matters and is implemented in `[Code]`, not `[UninstallRun]`:
 
 1. `CurUninstallStepChanged(usUninstall)` runs **before** `[UninstallDelete]`.

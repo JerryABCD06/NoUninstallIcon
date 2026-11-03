@@ -21,6 +21,36 @@ Everything here is something that failed at least once during development.
   composition string is drawn at the caret. `WM_IME_CHAR` is swallowed, because the
   result already arrives through the composition message.
 
+## Popup menus and dark mode
+
+The four menus the program shows — the row context menu, the language list, the
+autostart list, and the tray menu — are plain Win32 popup menus created with
+`CreatePopupMenu` and shown with `TrackPopupMenu`. They are drawn by the **theme engine**,
+not by Direct2D, and `DWMWA_USE_IMMERSIVE_DARK_MODE` only affects the window frame. Out of
+the box they would stay light in dark mode.
+
+`ApplyNativeDarkMode(window, dark)` in `util.cpp` fixes that with the three uxtheme entry
+points that the shell itself uses:
+
+| Entry point | How it is reached | What it does |
+|---|---|---|
+| `SetPreferredAppMode(AllowDark)` | ordinal **135** | tells the theme engine this process follows the system app mode |
+| `AllowDarkModeForWindow(hwnd, dark)` | ordinal **133** | opts one window in |
+| `FlushMenuThemes()` | ordinal **136** | drops the cached menu theme so the next menu is drawn in the new mode |
+| `SetWindowTheme(hwnd, L"DarkMode_Explorer", nullptr)` | documented function, undocumented theme name | switches that window's theme |
+
+They are unnamed exports, so they can only be resolved by ordinal — which is why the
+code degrades instead of failing: if `uxtheme.dll` does not export them, the pointers stay
+null and the menus keep their light appearance. Nothing else breaks.
+
+The window applies this from `ApplyTheme()`, which already runs on `WM_SETTINGCHANGE`, so
+flipping the system theme at run time also changes the menus. The watcher calls it from
+`tray::ShowMenu` because it has no window of its own that would run a theme pass.
+
+`AllowDark` rather than `ForceDark` is deliberate: the program's palette comes from the
+same `AppsUseLightTheme` value, so letting the theme engine read it too keeps the menus
+and the window from disagreeing.
+
 ## Hit testing, since there are no child windows
 
 Every control is a rectangle computed by `ComputeLayout()`. The order of the tests in
