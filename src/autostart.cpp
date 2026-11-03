@@ -103,6 +103,42 @@ bool IsAutostartInstalled()
     return SUCCEEDED(folder->GetTask(name, task.GetAddressOf()));
 }
 
+bool ReadAutostartAction(std::wstring& path, std::wstring& arguments)
+{
+    path.clear();
+    arguments.clear();
+
+    ComPtr<ITaskService> service;
+    if (!Connect(service)) return false;
+
+    ComPtr<ITaskFolder> folder;
+    Bstr root(L"\\");
+    if (FAILED(service->GetFolder(root, folder.GetAddressOf()))) return false;
+
+    ComPtr<IRegisteredTask> task;
+    Bstr name(kTaskName);
+    if (FAILED(folder->GetTask(name, task.GetAddressOf()))) return false;
+
+    ComPtr<ITaskDefinition> definition;
+    if (FAILED(task->get_Definition(definition.GetAddressOf()))) return false;
+    ComPtr<IActionCollection> actions;
+    if (FAILED(definition->get_Actions(actions.GetAddressOf()))) return false;
+    ComPtr<IAction> action;
+    if (FAILED(actions->get_Item(1, action.GetAddressOf()))) return false;
+    ComPtr<IExecAction> exec;
+    if (FAILED(action.As(&exec))) return false;
+
+    BSTR exe = nullptr;
+    BSTR args = nullptr;
+    const HRESULT pathResult = exec->get_Path(&exe);
+    const HRESULT argResult = exec->get_Arguments(&args);
+    if (SUCCEEDED(pathResult) && exe) path = exe;
+    if (SUCCEEDED(argResult) && args) arguments = args;
+    SysFreeString(exe);
+    SysFreeString(args);
+    return SUCCEEDED(pathResult);
+}
+
 bool InstallAutostart(AutostartMode mode)
 {
     ClearError();

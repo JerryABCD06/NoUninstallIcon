@@ -666,9 +666,24 @@ int App::RunGui(int showCommand)
                 RemoveAutostart();
             }
         }
-        else if (!IsAutostartInstalled())
+        else
         {
-            InstallAutostart(savedMode);
+            // A task that merely exists is not enough: it can point at an old copy
+            // or carry the arguments of a previous mode. Compare and rewrite when
+            // it does not describe this executable and this mode.
+            const wchar_t* expectedArgs = (savedMode == AutostartMode::Once) ? L"--apply" : L"--background";
+            const std::wstring exePath = GetExePath();
+            std::wstring taskPath;
+            std::wstring taskArgs;
+            const bool installed = IsAutostartInstalled();
+            const bool readable = installed && ReadAutostartAction(taskPath, taskArgs);
+            const bool matches = readable && EqualsI(taskPath, exePath) && EqualsI(taskArgs, expectedArgs);
+            if (!matches)
+            {
+                LogLineF(L"startup: task does not match (installed=%d readable=%d path=%s args=%s), rewriting",
+                         installed ? 1 : 0, readable ? 1 : 0, taskPath.c_str(), taskArgs.c_str());
+                InstallAutostart(savedMode);
+            }
         }
         CoUninitialize();
     }).detach();

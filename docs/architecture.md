@@ -135,7 +135,7 @@ Nothing polls. Things are put right when one of these happens:
 
 | Trigger | Who acts | What it fixes |
 |---|---|---|
-| Window start-up | window | installs or removes the sign-in task to match the mode, publishes the mode, starts a watcher if the mode wants one and none is running |
+| Window start-up | window | installs, removes or rewrites the sign-in task to match the mode **and this executable**, publishes the mode, starts a watcher if the mode wants one and none is running |
 | Mode change | window → watcher | the watcher adds or removes its icon, or exits; no process is restarted |
 | Directory change | watcher | reloads the state file and re-applies |
 | Watcher start-up | watcher | exits at once if the stored mode is Off or Once |

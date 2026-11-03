@@ -69,12 +69,14 @@ it knows about; a shortcut with no record has to be unhidden by hand in Explorer
 
 - The task is created when the mode is set, and reconciled at every window start: a
   missing task is re-created, and a task that no mode wants is removed.
-- The task stores an **absolute path**. Moving or renaming the program folder leaves it
-  pointing at nothing; re-select the mode to re-register it.
-- The task's arguments are not validated at start-up: a task left over from an older
-  version with different arguments is not corrected. Removing it
-  (`schtasks /delete /tn NoUninstallIcon-AutoHide /f`) and re-selecting the mode fixes
-  it.
+- The task stores an **absolute path**, and start-up compares it — and its arguments —
+  with the running executable. A task left pointing at an older copy, or carrying the
+  arguments of a previous mode, is rewritten the next time the window starts. Running a
+  second copy of the program (a portable one, say) therefore takes the task over: the
+  last one that starts wins, which is the same rule the mode itself follows.
+- What is *not* compared is the principal: a task someone has edited to run as another
+  user or at another run level is left alone. Remove it
+  (`schtasks /delete /tn NoUninstallIcon-AutoHide /f`) and re-select the mode.
 - `--cleanup` removes it; the uninstaller runs `--cleanup` before deleting the files.
 
 ## "The state file could not be written"
