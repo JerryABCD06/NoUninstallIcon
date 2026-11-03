@@ -83,19 +83,27 @@ Requirements: MSVC (VS 2022/2026 with the C++ desktop workload) and the Windows 
 SDK. No NuGet packages are used.
 
 ```bat
-build.bat            :: release
+build.bat            :: release, unsigned
 build.bat debug      :: debug
+build.bat sign       :: also signs the build with .signing\NoUninstallIcon.pfx
 ```
 
-Output: `build\NoUninstallIcon.exe` (~400 KB, statically linked C runtime).
+Output: `build\NoUninstallIcon.exe` (~560 KB, statically linked C runtime).
+
+Signing is for local testing only. A self-signed binary carries the publisher
+"王云正" with no chain to a trusted root, so Windows shows it as an unknown
+publisher and SmartScreen trusts it no more than an unsigned file; a release
+build is therefore left unsigned, and `tools\package.ps1` refuses to package a
+signed one.
 
 ## Installer
 
 ```bat
-ISCC.exe installer\setup.iss
+powershell -File tools\package.ps1        :: installer and portable zip, unsigned
 ```
 
-Output: `dist\NoUninstallIcon-Setup-1.0.0.exe`. The uninstaller runs
+Output: `dist\NoUninstallIcon-Setup-1.0.0.exe` and
+`dist\NoUninstallIcon-portable-1.0.0.zip`. The uninstaller runs
 `NoUninstallIcon.exe --cleanup` first, which deletes the sign-in task and gives every
 managed shortcut its original attributes back.
 

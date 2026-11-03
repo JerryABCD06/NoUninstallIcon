@@ -65,5 +65,8 @@ endlocal
 rem Language files must stay in sync with en.lang
 powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\check-lang.ps1"
 
-rem Sign with the local certificate when one is installed
-powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\sign.ps1" -Path "%~dp0build\NoUninstallIcon.exe"
+rem Sign only when asked: a self-signed binary is for local testing, and a
+rem release is better left unsigned than carrying an untrusted publisher.
+if /i "%~1"=="sign" (
+    powershell -NoProfile -ExecutionPolicy Bypass -File "%~dp0tools\sign.ps1" -Path "%~dp0build\NoUninstallIcon.exe"
+)

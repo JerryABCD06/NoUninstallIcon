@@ -42,11 +42,15 @@ BEGIN
     BLOCK "040904B0"
     BEGIN
       VALUE "CompanyName",      "王云正"
-      VALUE "FileDescription",  "我不需要卸载图标"
+      // Task Manager and Explorer read these two straight from the binary and
+      // pick them by the system UI language, not by the language this program
+      // is set to, so they stay English: a Chinese name there would look wrong
+      // for every user who runs the program in any other language.
+      VALUE "FileDescription",  "NoUninstallIcon"
       VALUE "FileVersion",      "1.0.0.0"
       VALUE "InternalName",     "NoUninstallIcon"
       VALUE "OriginalFilename", "NoUninstallIcon.exe"
-      VALUE "ProductName",      "我不需要卸载图标"
+      VALUE "ProductName",      "NoUninstallIcon"
       VALUE "ProductVersion",   "1.0.0.0"
       VALUE "LegalCopyright",   "MIT License, 王云正"
     END
