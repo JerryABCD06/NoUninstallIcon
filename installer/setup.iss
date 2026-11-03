@@ -4,7 +4,7 @@
 ; attribute on shortcuts that live under %ProgramData%.
 
 #define AppName "我不需要卸载图标"
-#define AppVersion "1.0.0"
+#define AppVersion "0.1.0"
 #define AppExeName "NoUninstallIcon.exe"
 #define AppId "{{8E4B7C2A-3F1D-4A6B-9C5E-2D7F1A8B4C60}"
 

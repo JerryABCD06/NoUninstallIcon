@@ -35,8 +35,8 @@ if (-not $iscc) {
     exit 1
 }
 
-$setup = Join-Path $dist 'NoUninstallIcon-Setup-1.0.0.exe'
-$zip = Join-Path $dist 'NoUninstallIcon-portable-1.0.0.zip'
+$setup = Join-Path $dist 'NoUninstallIcon-Setup-0.1.0.exe'
+$zip = Join-Path $dist 'NoUninstallIcon-portable-0.1.0.zip'
 
 & $iscc (Join-Path $root 'installer\setup.iss') | Out-Null
 if ($LASTEXITCODE -ne 0) {

@@ -103,8 +103,8 @@ signed one.
 powershell -File tools\package.ps1        :: installer and portable zip, unsigned
 ```
 
-Output: `dist\NoUninstallIcon-Setup-1.0.0.exe` and
-`dist\NoUninstallIcon-portable-1.0.0.zip`. The uninstaller runs
+Output: `dist\NoUninstallIcon-Setup-0.1.0.exe` and
+`dist\NoUninstallIcon-portable-0.1.0.zip`. The uninstaller runs
 `NoUninstallIcon.exe --cleanup` first, which deletes the sign-in task and gives every
 managed shortcut its original attributes back.
 
@@ -114,10 +114,16 @@ managed shortcut its original attributes back.
 |---|---|
 | *(none)* | Normal window. Relaunches itself elevated once. |
 | `--apply` | Apply the stored list silently and exit (used by the sign-in task). |
-| `--watch`, `--background` | Apply once, then watch both Start menu trees and re-apply on change. Owns the tray icon. |
+| `--watch`, `--background` | Run the watcher: apply once, then watch both Start menu trees and re-apply on change. Owns the tray icon when the stored mode wants one. |
 | `--background --no-tray` | Same, and never shows an icon whatever the mode says. |
 | `--restore` | Restore every managed shortcut and forget them. |
 | `--cleanup` | Remove the sign-in task, then `--restore` (used by the uninstaller). |
+
+The watcher obeys the stored mode, it does not choose it: with the mode set to
+*Off* or *Once* it applies nothing and exits immediately, because those modes are
+defined as having no watcher. `--watch` and `--background` are the way the sign-in
+task starts the watcher, not a way to switch the mode on from a command line; the
+mode is set in the window and stored in `state.dat`.
 | `--screenshot <png> [--theme light\|dark] [--about]` | Off-screen render of the window, for testing. |
 | `--capture <png>` | Show the real window, grab it to PNG, exit. |
 | `--dump <txt>` | Scan and write a classification report. |
