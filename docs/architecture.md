@@ -6,7 +6,7 @@ responsibility lives in the source.
 
 For the user-facing description see the [README](../README.md); for the file formats
 see [state-file.md](state-file.md); for the Win32 details see
-[win32-notes.md](win32-notes.md).
+[win32-notes.md](win32-notes.md); for the drawing layer see [internals.md](internals.md).
 
 ## The one sentence version
 
@@ -191,8 +191,8 @@ concurrently.
 | `src/crash.cpp` | unhandled-exception filter and dump |
 | `src/util.cpp` | paths, files, logging, elevation check, formatting |
 
-Roughly 7 000 lines of C++ including headers, no third-party dependencies, statically
-linked C runtime.
+Roughly 7 300 lines of C++ across 32 files, including headers; no third-party
+dependencies, statically linked C runtime.
 
 ## Failure philosophy
 
@@ -201,3 +201,55 @@ could not start is reported; a state file that cannot be parsed is left alone an
 program refuses to overwrite it; a language that cannot be written is rolled back in
 the interface. The log is off by default, so the user is told rather than told to go and
 read a file.
+
+## Walkthroughs
+
+Two sequences, end to end, naming the step and where it lives.
+
+### Hiding one shortcut
+
+| # | Step | Where |
+|---|---|---|
+| 1 | A click on a row resolves to a row index and to "should be hidden" | `OnLeftDown`, `RowAtPoint` — see [internals.md](internals.md) |
+| 2 | The handler takes the state lock and reloads the file | `App::HandleToggle` |
+| 3 | The attributes are read, and the record is found or created | `ReadAttributes`, `Store::Ensure` |
+| 4 | A **new** record is saved first, with `desiredHidden = false` | [state-file.md](state-file.md) |
+| 5 | `FILE_ATTRIBUTE_HIDDEN` is set on the file itself | `apply.cpp` |
+| 6 | On success the record is marked hidden and saved again | `Store::Save` |
+| 7 | On failure the attribute is put back, the record is dropped or kept, and a toast says why | `App::HandleToggle` |
+| 8 | The list is rebuilt, the toast offers Undo, the change is announced | `RebuildDisplay`, `MainWindow::Announce` |
+| 9 | The watcher notices the attribute change, reloads, and re-applies nothing (it is already hidden) | [Reconciliation](#reconciliation) |
+
+The file is hidden *before* the UI says so, and the record is written *before* the file
+is touched. Every step either completes or is undone.
+
+### Switching the mode
+
+| # | Step | Where |
+|---|---|---|
+| 1 | The dropdown shows the new value immediately, optimistically | `ShowAutostartMenu` |
+| 2 | The scheduled task is installed, removed or rewritten on a worker thread | `autostart.cpp` |
+| 3 | The result arrives as `WM_APP_AUTOSTART_DONE` | `ui.cpp` |
+| 4 | The completion takes the state lock, reloads, writes the mode, saves | the `autostartDone` callback |
+| 5 | If the save failed, the task is put back in line with the stored mode and the dropdown is reverted | the same callback |
+| 6 | The mode is published to the shared section and the event is set | `session.cpp` |
+| 7 | A watcher is started if the mode wants one and none is running | `ShellExecuteW` in `app.cpp` |
+| 8 | The running watcher reads the mode: shows or hides its icon, or exits | `App::RunWatch` |
+
+Switching between *Keep watching* and *Watch (no tray icon)* does not restart the
+watcher: it adds or removes its own icon.
+
+## Glossary
+
+| Term | Meaning here |
+|---|---|
+| **record** | one line of `state.dat`, describing one managed shortcut |
+| **adoption** | creating a record for a shortcut this tool has not handled before; this is also when its original attributes are captured |
+| **intent record** | a record written with `desiredHidden = false` before the file is touched, so an interrupted hide cannot orphan the shortcut |
+| **orphan** | a hidden shortcut with no record — the state most of this program exists to prevent |
+| **watcher** | the `--background` process; it owns the tray icon and the attribute writes |
+| **resident** | the window or the watcher, as opposed to a one-shot command-line run |
+| **transaction** | one load → modify → save sequence under the state lock |
+| **reconcile** | bring the derived things (task, watcher, icon) in line with the stored mode, without changing the mode |
+| **sticky header** | the group header painted at the top of the list once its own row has scrolled away |
+| **mode** | Off, Once, Watch or Silent, stored in `state.dat` — the only thing the processes share |

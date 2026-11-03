@@ -15,11 +15,11 @@ surface so it can use the Windows 11 Mica backdrop.
 
 ## Documentation
 
-This README is the overview. The details live in `docs/`:
+This README is the overview. The details live in `docs/`; if you are reading the code for the first time, start with *architecture*, then *internals*.
 
 | Document | What is in it |
 |---|---|
-| [docs/architecture.md](docs/architecture.md) | the processes, the state machine, the shared objects, the locking and reconciliation rules, the threading map, a module-by-module map |
+| [docs/architecture.md](docs/architecture.md) | the processes, the state machine, the shared objects, the locking and reconciliation rules, the threading map, a module-by-module map, two end-to-end walkthroughs and a glossary |
 | [docs/state-file.md](docs/state-file.md) | every file the program writes: `state.dat` grammar and escaping, `state.lock`, the log, crash dumps, what is *not* stored |
 | [docs/win32-notes.md](docs/win32-notes.md) | the parts that are only difficult on Windows: the tray protocol version 4, integrity levels and UIPI, DPI, DirectComposition and Mica, hand-written hit testing, UI Automation, the scheduled task's exact settings |
 | [docs/build.md](docs/build.md) | building, where the version lives, the signing policy, packaging, the uninstall order, the language-file format |
@@ -58,6 +58,50 @@ This is the part that makes the tool safe to use:
 Every managed record stores the **original attributes** of the shortcut. Unchecking
 restores the previous hidden bit instead of blindly clearing it, so a shortcut that
 was already hidden before this tool touched it stays hidden when it is released.
+
+## Using the window
+
+The list holds everything under the two Start menu trees, in two groups: *Uninstall
+entries* and *Other shortcuts*. Each header shows its count; the uninstall group's header
+also carries **Hide all / Unhide all**. The toolbar has **Unhide everything** and
+**Rescan**; the search box filters on name and path as you type; the footer reports the
+totals (`335 shortcuts · 0 hidden by this tool · 11 hidden elsewhere`).
+
+The mode dropdown is the "hide automatically" switch:
+
+| Mode | What it does |
+|---|---|
+| Off | nothing runs in the background, and the sign-in task is removed |
+| Once at sign-in | runs `--apply` once per sign-in, then exits |
+| Keep watching | runs `--background`: re-applies when the Start menu changes, and shows a tray icon |
+| Watch (no tray icon) | the same, without the icon |
+
+The language dropdown lists **System** — follow the Windows display language — followed by
+every embedded language. Choosing one applies immediately and is remembered.
+
+Right-clicking a row offers the toggle and *Open shortcut location*.
+
+### Keyboard
+
+| Key | Action |
+|---|---|
+| `Up` / `Down` | move the selection by one entry |
+| `Home` / `End` | first / last entry |
+| `PgUp` / `PgDn` | one screen up or down; the selection moves with it |
+| `Space` | hide or unhide the selected entry |
+| `Enter` | open the selected shortcut's location |
+| `Apps`, `Shift+F10` | context menu for whatever has focus |
+| `Ctrl+F` | jump to the search box |
+| `Tab` / `Shift+Tab` | move between the search box, the list and the toolbar |
+| `Esc` | in the search box: clear the selection, then the text, then leave; otherwise close the About dialog |
+
+### The tray menu
+
+When the mode shows an icon, the notification-area menu has exactly two commands:
+**Open** (also a single or double click on the icon) and **Quit**.
+Quit closes the window first, then removes the icon and stops the watcher — it does not
+change the mode, so watching starts again the next time the window is opened or at the
+next sign-in.
 
 ## What it does not cover
 
