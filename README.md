@@ -25,6 +25,7 @@ This README is the overview. The details live in `docs/`:
 | [docs/build.md](docs/build.md) | building, where the version lives, the signing policy, packaging, the uninstall order, the language-file format |
 | [docs/testing.md](docs/testing.md) | the environment variables, the test modes, a self-test recipe, what cannot be checked headlessly, a five-minute manual pass |
 | [docs/troubleshooting.md](docs/troubleshooting.md) | symptom → cause → check, starting with how to turn the log on |
+| [docs/internals.md](docs/internals.md) | the rendering layer: the D3D11/D2D/DirectComposition stack, Mica, the painter, layout constants, the display list and how the list stays cheap, the icon worker, off-screen rendering |
 
 ## What it does
 
