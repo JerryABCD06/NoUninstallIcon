@@ -844,7 +844,10 @@ int App::RunSelfTest()
     report += Fmt(L"unhide : bit=%d managed=%d record=%d\r\n", (afterShow & FILE_ATTRIBUTE_HIDDEN) ? 1 : 0,
                   model_.items[index].managed ? 1 : 0, store_.Find(key) ? 1 : 0);
 
-    bool ok = (before & FILE_ATTRIBUTE_HIDDEN) == (afterShow & FILE_ATTRIBUTE_HIDDEN);
+    // The hide has to take effect and be recorded, and the unhide has to put
+    // back exactly the bit that was there before.
+    bool ok = (afterHide & FILE_ATTRIBUTE_HIDDEN) != 0;
+    ok = ok && (before & FILE_ATTRIBUTE_HIDDEN) == (afterShow & FILE_ATTRIBUTE_HIDDEN);
 
     // Case 2: a shortcut that was already hidden before this tool touched it
     // must stay hidden when the user unchecks it again.

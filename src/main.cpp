@@ -182,6 +182,8 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
     case Options::Mode::Preview:
         app.SetCapturePath(options.capturePath);
         if (options.previewFocus >= 0) app.SetPreviewFocus(options.previewFocus);
+        if (!options.previewQuery.empty()) app.SetPreviewQuery(options.previewQuery);
+        if (options.previewScroll >= 0) app.SetPreviewScroll(options.previewScroll);
         if (options.showAbout) app.SetAboutOpen(true);
         return app.RunGui(showCommand);
     case Options::Mode::Gui:

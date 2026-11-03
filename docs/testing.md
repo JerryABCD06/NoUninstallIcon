@@ -23,7 +23,7 @@ exercised in a temporary directory.
 |---|---|
 | `--screenshot <png> [--theme light\|dark] [--about] [--query <text>] [--scroll <px>] [--focus <n>]` | renders the window off-screen to a PNG |
 | `--capture <png>` | shows the real window, grabs it, exits |
-| `--preview [--query ...] [--focus ...] [--scroll ...]` | opens the window in a test state |
+| `--preview [--query ...] [--focus ...] [--scroll ...] [--about]` | opens the window in a test state |
 | `--dump <txt>` | scans and writes the classification, twice: raw and in display order |
 | `--selftest` | hides and unhides a fixture entry and verifies the invariants |
 | `--crash-test` | faults on purpose, to exercise the crash handler |
@@ -44,10 +44,15 @@ NoUninstallIcon.exe --selftest
 type %TEMP%\noui\selftest.txt
 ```
 
-The self-test checks three things: a shortcut can be hidden and the record created; a
-record whose file disappears is not resurrected; a shortcut hidden by something else is
-not claimed as hidden by this tool. `RESULT: mismatch` and exit code 1 mean one of them
-failed; the report says which.
+The self-test checks two things, and reports each step:
+
+1. a fixture shortcut is hidden and then unhidden — the hidden bit really is set, and
+   when it is cleared the attributes match what they were before;
+2. a shortcut that was **already hidden by something else** is adopted and released —
+   it must stay hidden, and must end up unmanaged, because this tool never claimed it.
+
+`RESULT: mismatch` and exit code 1 mean one of them failed; the report shows the
+`bit=`, `managed=` and `record=` values that decided it.
 
 ## What a headless session cannot verify
 
