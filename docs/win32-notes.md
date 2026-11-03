@@ -43,7 +43,7 @@ They are unnamed exports, so they can only be resolved by ordinal — which is w
 code degrades instead of failing: if `uxtheme.dll` does not export them, the pointers stay
 null and the menus keep their light appearance. Nothing else breaks.
 
-Two conditions are checked before resolving anything:
+One thing is checked before anything is resolved, and one is deliberately not checked:
 
 - **The build number.** These entry points first appeared in Windows 10 1809 (17763).
   Earlier builds have the same ordinal slots occupied by **different functions**, and

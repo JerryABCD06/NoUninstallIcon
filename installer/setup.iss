@@ -134,6 +134,48 @@ begin
   Result := True;
 end;
 
+// An upgrade does not delete shortcuts that the older script created and this
+// one no longer lists, so an installation made before the uninstall shortcut was
+// dropped would keep it forever. Delete any shortcut in the group that points at
+// this product's uninstaller; the application shortcut points at the exe and is
+// left alone.
+procedure RemoveStaleUninstallShortcut();
+var
+  FindRec: TFindRec;
+  Group, ItemPath, Target: String;
+  Shell: Variant;
+begin
+  Group := ExpandConstant('{group}');
+  if not FindFirst(AddBackslash(Group) + '*.lnk', FindRec) then
+    Exit;
+  try
+    repeat
+      if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then
+      begin
+        ItemPath := AddBackslash(Group) + FindRec.Name;
+        try
+          Shell := CreateOleObject('WScript.Shell');
+          Target := Shell.CreateShortcut(ItemPath).TargetPath;
+        except
+          Target := '';
+        end;
+        if CompareText(Target, ExpandConstant('{uninstallexe}')) = 0 then
+        begin
+          Log('Removing a stale uninstall shortcut: ' + FindRec.Name);
+          DeleteFile(ItemPath);
+        end;
+      end;
+    until not FindNext(FindRec);
+  finally
+    FindClose(FindRec);
+  end;
+end;
+
+procedure CurStepChanged(CurStep: TSetupStep);
+begin
+  if CurStep = ssPostInstall then
+    RemoveStaleUninstallShortcut();
+end;
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;

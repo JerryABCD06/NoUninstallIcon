@@ -5,7 +5,6 @@
 #include <sys/stat.h>
 #include <shlobj.h>
 #include <uxtheme.h>
-#include <winternl.h>
 
 std::wstring Widen(std::string_view text)
 {
@@ -289,7 +288,6 @@ struct UxthemeApi
     using AllowDarkModeForWindowFn = BOOL(WINAPI*)(HWND, BOOL);
     using FlushMenuThemesFn = void(WINAPI*)();
 
-    bool resolved = false;
     SetPreferredAppModeFn setPreferredAppMode = nullptr;
     AllowDarkModeForWindowFn allowDarkModeForWindow = nullptr;
     FlushMenuThemesFn flushMenuThemes = nullptr;
@@ -297,21 +295,25 @@ struct UxthemeApi
 
 UxthemeApi& Uxtheme()
 {
-    static UxthemeApi api;
-    if (api.resolved) return api;
-    api.resolved = true;
+    // Function-local static: initialised exactly once, by whichever thread gets
+    // here first, and never again.
+    static UxthemeApi api = []() {
+        UxthemeApi loaded;
+        if (!DarkModeMenuApiAvailable()) return loaded;
 
-    if (!DarkModeMenuApiAvailable()) return api;
+        // The executable imports SetWindowTheme, so uxtheme is already loaded and
+        // there is no reference to leak.
+        HMODULE module = GetModuleHandleW(L"uxtheme.dll");
+        if (!module) return loaded;
 
-    HMODULE module = LoadLibraryExW(L"uxtheme.dll", nullptr, LOAD_LIBRARY_SEARCH_SYSTEM32);
-    if (!module) return api;
-
-    api.setPreferredAppMode = reinterpret_cast<UxthemeApi::SetPreferredAppModeFn>(
-        GetProcAddress(module, MAKEINTRESOURCEA(135)));
-    api.allowDarkModeForWindow = reinterpret_cast<UxthemeApi::AllowDarkModeForWindowFn>(
-        GetProcAddress(module, MAKEINTRESOURCEA(133)));
-    api.flushMenuThemes = reinterpret_cast<UxthemeApi::FlushMenuThemesFn>(
-        GetProcAddress(module, MAKEINTRESOURCEA(136)));
+        loaded.setPreferredAppMode = reinterpret_cast<UxthemeApi::SetPreferredAppModeFn>(
+            GetProcAddress(module, MAKEINTRESOURCEA(135)));
+        loaded.allowDarkModeForWindow = reinterpret_cast<UxthemeApi::AllowDarkModeForWindowFn>(
+            GetProcAddress(module, MAKEINTRESOURCEA(133)));
+        loaded.flushMenuThemes = reinterpret_cast<UxthemeApi::FlushMenuThemesFn>(
+            GetProcAddress(module, MAKEINTRESOURCEA(136)));
+        return loaded;
+    }();
     return api;
 }
 
@@ -322,11 +324,15 @@ void ApplyNativeDarkMode(HWND window, bool dark)
     if (!window) return;
     UxthemeApi& api = Uxtheme();
 
+    // Without the theme-engine entry points there is nothing to do: leave the
+    // window unthemed, exactly as it was before this existed.
+    if (!api.allowDarkModeForWindow) return;
+
     // 1 is AllowDark: the theme engine keeps following the user's choice, which
     // is the same registry value this program reads. Forcing a mode here would
     // let the menus disagree with the window when the app mode differs.
-    if (api.setPreferredAppMode && api.allowDarkModeForWindow) api.setPreferredAppMode(1);
-    if (api.allowDarkModeForWindow) api.allowDarkModeForWindow(window, dark ? TRUE : FALSE);
+    if (api.setPreferredAppMode) api.setPreferredAppMode(1);
+    api.allowDarkModeForWindow(window, dark ? TRUE : FALSE);
 
     SetWindowTheme(window, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);
     if (api.flushMenuThemes) api.flushMenuThemes();
