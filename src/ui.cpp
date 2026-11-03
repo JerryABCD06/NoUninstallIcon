@@ -1326,7 +1326,8 @@ void MainWindow::OnLeftDown(int x, int y)
 
     // The scrollbar sits on top of the rows: test it before the row hit test,
     // otherwise a press on the thumb toggles whatever row happens to be under it.
-    if (ContainsPoint(layout.scrollbar, fx, fy))
+    if (contentHeightCache_ > (layout.list.bottom - layout.list.top) + 1.0f &&
+        ContainsPoint(layout.scrollbar, fx, fy))
     {
         draggingThumb_ = true;
         dragStartY_ = fy;
@@ -1334,6 +1335,9 @@ void MainWindow::OnLeftDown(int x, int y)
         SetCapture(hwnd_);
         return;
     }
+
+    // Any other click inside a header belongs to the header, not to a row.
+    if (headerGroup >= 0) return;
 
     int row = RowAtPoint(fy, nullptr);
     if (row >= 0)
@@ -1636,22 +1640,26 @@ void MainWindow::HandleListKey(WPARAM key)
     case VK_NEXT:
     case VK_PRIOR:
     {
-        // Move the focus by a page as well, otherwise Space or Enter would act
-        // on a row that is no longer on screen.
-        const float page = (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f;
-        if (rows > 0)
+        // Move the focus by one screenful of rows and let EnsureVisible do the
+        // only scrolling: mixing a pixel step with a row step made the two drift
+        // apart, and the focused row ended up outside the view.
+        const Layout layout = ComputeLayout();
+        int visible = 0;
+        for (const Entry& entry : entries_)
         {
-            const int start = focusRow_ >= 0 ? focusRow_ : 0;
-            const int step = static_cast<int>(page / kRowHeight);
-            int target = key == VK_NEXT ? start + (step > 0 ? step : 1) : start - (step > 0 ? step : 1);
-            if (target < 0) target = 0;
-            if (target > rows - 1) target = rows - 1;
-            focusRow_ = target;
-            EnsureVisible(focusRow_);
-            ScrollTo(scroll_ + (key == VK_NEXT ? page : -page));
-            Invalidate();
-            AnnounceFocus();
+            if (entry.header) continue;
+            const float top = layout.list.top + entry.top - scroll_;
+            if (top + entry.height > layout.list.top && top < layout.list.bottom) ++visible;
         }
+        if (visible < 1) visible = 1;
+        const int start = focusRow_ >= 0 ? focusRow_ : 0;
+        int target = key == VK_NEXT ? start + visible : start - visible;
+        if (target < 0) target = 0;
+        if (target > rows - 1) target = rows - 1;
+        focusRow_ = target;
+        EnsureVisible(focusRow_);
+        Invalidate();
+        AnnounceFocus();
         return;
     }
     case VK_SPACE:
