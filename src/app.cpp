@@ -878,16 +878,20 @@ int App::RunCleanup()
     // shortcut after the restore below, the uninstaller would delete the program
     // and leave that shortcut hidden with nobody to release it, so close it the
     // same way the tray's Quit does, and wait for it to go.
+    bool windowGone = true;
     if (HWND window = FindWindowW(L"NoUninstallIcon.MainWindow", nullptr))
     {
         LogLine(L"cleanup: closing the open window first");
-        if (!PostMessageW(window, WM_CLOSE, 0, 0))
+        const bool posted = PostMessageW(window, WM_CLOSE, 0, 0) != 0;
+        if (!posted)
         {
-            // A window running at a higher integrity level cannot be told to
-            // close from here; say so rather than pretending it worked.
+            // Typically a window at a higher integrity level, which cannot be
+            // told to close from here. Waiting for it would be dead time.
             LogLineF(L"cleanup: cannot close the window (err=%lu)", GetLastError());
         }
-        for (int tick = 0; tick < 40 && IsWindow(window); ++tick) Sleep(50);
+        for (int tick = 0; posted && tick < 40 && IsWindow(window); ++tick) Sleep(50);
+        windowGone = !IsWindow(window);
+        if (!windowGone) LogLine(L"cleanup: the window is still open");
     }
 
     // Uninstalling must leave nothing running: tell the watcher the mode is off
@@ -924,7 +928,9 @@ int App::RunCleanup()
     const bool taskRemoved = RemoveAutostart();
     if (!taskRemoved) LogLine(L"cleanup: could not remove the task");
     const int restore = RunRestoreAll();
-    return (offSaved && taskRemoved && restore == 0) ? 0 : 1;
+    // A window that could not be closed still holds a model that could re-hide
+    // a shortcut after this restore, so the caller must not be told it is clean.
+    return (offSaved && taskRemoved && restore == 0 && windowGone) ? 0 : 1;
 }
 
 int App::RunWatch(bool showTray)

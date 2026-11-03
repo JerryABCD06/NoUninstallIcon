@@ -192,7 +192,8 @@ StateLock::StateLock()
     lockFile_ = CreateFileW(lockPath.c_str(), GENERIC_READ | GENERIC_WRITE,
                             FILE_SHARE_READ | FILE_SHARE_WRITE | FILE_SHARE_DELETE, nullptr,
                             OPEN_ALWAYS, FILE_ATTRIBUTE_HIDDEN, nullptr);
-    if (lockFile_ != INVALID_HANDLE_VALUE)
+    ownsLockFile_ = (lockFile_ != INVALID_HANDLE_VALUE);
+    if (ownsLockFile_)
     {
         OVERLAPPED overlay{};
         for (int attempt = 0; attempt < 25 && !fileLocked_; ++attempt)
@@ -212,21 +213,24 @@ StateLock::StateLock()
 
 StateLock::~StateLock()
 {
-    if (held_ && --gLockDepth == 0)
+    // Release what this object actually owns, not whatever the thread's depth
+    // happens to be: that keeps a non-nested future use from leaking the lock.
+    if (ownsLockFile_)
     {
-        // The outermost transaction releases the cross-session lock.
-        if (lockFile_ && lockFile_ != INVALID_HANDLE_VALUE)
+        if (fileLocked_)
         {
-            if (fileLocked_)
-            {
-                OVERLAPPED overlay{};
-                UnlockFileEx(lockFile_, 0, 1, 0, &overlay);
-            }
-            CloseHandle(lockFile_);
-            lockFile_ = nullptr;
+            OVERLAPPED overlay{};
+            UnlockFileEx(lockFile_, 0, 1, 0, &overlay);
         }
+        if (lockFile_ != INVALID_HANDLE_VALUE) CloseHandle(lockFile_);
+        lockFile_ = nullptr;
+        ownsLockFile_ = false;
     }
-    if (held_) ReleaseMutex(mutex_);
+    if (held_)
+    {
+        --gLockDepth;
+        ReleaseMutex(mutex_);
+    }
     if (mutex_) CloseHandle(mutex_);
 }
 

@@ -61,6 +61,7 @@ was already hidden before this tool touched it stays hidden when it is released.
 |---|---|
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat` | Managed records and settings (tab separated, escaped, atomically replaced) |
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat.bak` | Copy of the previous save, used if the primary file is damaged |
+| `%LOCALAPPDATA%\NoUninstallIcon\state.lock` | Empty file used for the cross-session lock |
 | `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Append-only log, trimmed to 1 MB when the program starts |
 | Task `NoUninstallIcon-AutoHide` | Sign-in task, created only when the user enables it |
 
@@ -145,7 +146,8 @@ is decided by the mode it is told, not by how it was launched. A watcher started
 by hand with `--no-tray` never shows an icon in any mode.
 
 Writers serialise on two levels: a named mutex for the session, and a byte-range
-lock on `state.lock` beside the data file, because the mutex is per session while
+lock on `state.lock` beside the data file (best effort: if the directory is read-only
+the session mutex alone still applies), because the mutex is per session while
 `state.dat` is per user and can even live on a share. Nested transactions on one
 thread (undo calls the toggle path) share the outer file lock.
 

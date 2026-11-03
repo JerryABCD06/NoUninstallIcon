@@ -40,6 +40,7 @@ public:
 private:
     HANDLE mutex_ = nullptr;
     HANDLE lockFile_ = nullptr;
+    bool ownsLockFile_ = false;
     bool fileLocked_ = false;
     bool held_ = false;
 };
