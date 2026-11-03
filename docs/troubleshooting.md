@@ -112,7 +112,8 @@ By design. The installer creates a Start menu entry for the program and nothing 
 utility that exists to take "卸载 …" / "Uninstall …" entries out of that menu should not
 add one of its own. To remove the product, use **Settings → Apps → Installed apps**, or
 run `unins000.exe` from the installation folder. Either path also runs the cleanup step
-described in [build.md](build.md).
+described in [build.md](build.md). In the portable archive, run `Reset.cmd` instead: it
+performs the same cleanup without deleting the program.
 
 ## Reporting a problem
 

@@ -5,7 +5,10 @@
 - MSVC with the C++ desktop workload (VS 2022 or newer).
 - The Windows 10/11 SDK.
 - No NuGet packages, no vcpkg, no third-party libraries of any kind.
-- Inno Setup 6 or newer, only for the installer.
+- Inno Setup **6.6 or newer**, only for the installer. The wizard's `dynamic`
+  appearance mode (dark mode that follows the system) arrived in 6.6.0, so an older
+  compiler rejects `WizardStyle=modern dynamic`. `tools\package.ps1` finds `ISCC.exe`
+  through the uninstall registry; set `INNO_SETUP_DIR` to override it.
 
 The C runtime is linked statically (`/MT`), so the executable has no redistributable
 dependency.
@@ -56,6 +59,10 @@ Signing is a **local test facility**, not part of the release.
   it less.
 - `tools\package.ps1` refuses to package a build that is already signed, and verifies
   that both artefacts came out unsigned.
+- `tools\sign.ps1` is the local-only half: it uses `.signing\NoUninstallIcon.pfx`, which
+  is git-ignored, and finds `signtool.exe` through the Windows SDK registry key or
+  `SIGNTOOL`. With no certificate or no tool it prints a line and lets the build continue
+  unsigned, which is the normal state of a release.
 
 ## Packaging
 
@@ -67,7 +74,7 @@ powershell -File tools\package.ps1 -Sign    # test build, signed
 It compiles the installer, builds the portable zip, and verifies the signatures:
 
 ```
-[package] ok (unsigned): exe 562 KB, setup 2294 KB, zip 287 KB
+[package] ok (unsigned): exe 566 KB, setup 2565 KB, zip 594 KB
 ```
 
 Output:

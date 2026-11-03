@@ -269,16 +269,16 @@ public:
                 for (int i = index + 1; i <= lastDialogChild && target < 0; ++i)
                     if (exists(i)) target = i;
             else if (index > 0 && index < lastRootChild)
-                for (int i = index + 1; i <= lastRootChild && target < 0; ++i)
-                    if (exists(i)) target = i;
+                for (int sibling = index + 1; sibling <= lastRootChild && target < 0; ++sibling)
+                    if (exists(sibling)) target = sibling;
             break;
         case NavigateDirection_PreviousSibling:
             if (index > firstDialogChild && index <= lastDialogChild)
                 for (int i = index - 1; i >= firstDialogChild && target < 0; --i)
                     if (exists(i)) target = i;
             else if (index > 1 && index <= lastRootChild)
-                for (int i = index - 1; i >= 1 && target < 0; --i)
-                    if (exists(i)) target = i;
+                for (int sibling = index - 1; sibling >= 1 && target < 0; --sibling)
+                    if (exists(sibling)) target = sibling;
             break;
         default:
             break;

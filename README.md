@@ -7,6 +7,10 @@ Written in C++20 with the Windows SDK only: no .NET, no Electron, no third-party
 libraries. The window is drawn with Direct2D/DirectWrite on a DirectComposition
 surface so it can use the Windows 11 Mica backdrop.
 
+Runs on 64-bit Windows 10 (1809 or newer) and Windows 11. Nothing is installed to run it:
+the executable is self-contained, and the Mica backdrop is used where the system offers
+it, with a plain surface underneath where it does not.
+
 ![Main window](docs/screenshot-light.png)
 
 | Dark theme | About | Real window (Mica) |

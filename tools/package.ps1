@@ -25,13 +25,29 @@ if ($Sign) {
     & (Join-Path $PSScriptRoot 'sign.ps1') -Path $exe
 }
 
-$iscc = @(
-    'D:\Apps\Inno Setup 7\ISCC.exe',
-    'C:\Program Files\Inno Setup 6\ISCC.exe',
-    'C:\Program Files (x86)\Inno Setup 6\ISCC.exe'
-) | Where-Object { Test-Path $_ } | Select-Object -First 1
+# Find the compiler: INNO_SETUP_DIR wins, then whatever the uninstall registry
+# says, then the default location of a stock install.
+$isccCandidates = @()
+if ($env:INNO_SETUP_DIR) { $isccCandidates += (Join-Path $env:INNO_SETUP_DIR 'ISCC.exe') }
+foreach ($uninstallRoot in @(
+    'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall',
+    'HKCU:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall'
+)) {
+    Get-ChildItem $uninstallRoot -ErrorAction SilentlyContinue |
+        Where-Object { $_.PSChildName -like 'Inno Setup*' } |
+        ForEach-Object {
+            $location = (Get-ItemProperty $_.PSPath -ErrorAction SilentlyContinue).InstallLocation
+            if ($location) { $isccCandidates += (Join-Path $location 'ISCC.exe') }
+        }
+}
+$isccCandidates += @(
+    'C:\Program Files (x86)\Inno Setup 6\ISCC.exe',
+    'C:\Program Files\Inno Setup 6\ISCC.exe'
+)
+$iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
-    Write-Host '[package] ISCC.exe not found'
+    Write-Host '[package] ISCC.exe not found. Install Inno Setup, or set INNO_SETUP_DIR to its folder.'
     exit 1
 }
 
