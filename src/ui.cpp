@@ -166,6 +166,8 @@ LRESULT MainWindow::HandleMessage(UINT message, WPARAM wparam, LPARAM lparam)
     case WM_LBUTTONDBLCLK:
     {
         float y = static_cast<float>(GET_Y_LPARAM(lparam)) / scale_;
+        D2D1_RECT_F band{};
+        if (HeaderGroupAtPoint(y, &band) >= 0) return 0;  // the header is on top
         int row = RowAtPoint(y, nullptr);
         if (row >= 0 && callbacks.openLocation) callbacks.openLocation(model_->rows[row]);
         return 0;
@@ -1336,8 +1338,13 @@ void MainWindow::OnLeftDown(int x, int y)
         return;
     }
 
-    // Any other click inside a header belongs to the header, not to a row.
-    if (headerGroup >= 0) return;
+    if (headerGroup >= 0)
+    {
+        // A header is not a row: nothing behind it is focused or toggled.
+        focusRow_ = -1;
+        Invalidate();
+        return;
+    }
 
     int row = RowAtPoint(fy, nullptr);
     if (row >= 0)
@@ -1393,24 +1400,31 @@ void MainWindow::EnsureVisible(int rowIndex)
     Layout layout = ComputeLayout();
     float viewHeight = layout.list.bottom - layout.list.top;
 
-    // A pinned group header floats over the top of the list, so a row scrolled to
-    // the very top would sit half behind it. Reserve its height while it is
-    // pinned; the check mirrors the one DrawList uses to decide to paint it.
-    float covered = 0.0f;
-    int stickyIndex = -1;
-    for (int i = 0; i < static_cast<int>(entries_.size()); ++i)
-    {
-        if (!entries_[i].header) continue;
-        if (entries_[i].top <= scroll_) stickyIndex = i;
-        else break;
-    }
-    if (stickyIndex >= 0 && entries_[stickyIndex].top < scroll_ - 0.5f) covered = kHeaderHeight;
+    // How much of the top a pinned group header covers at a given scroll offset.
+    // It has to be asked about the destination, not the current position: moving
+    // up across a group boundary makes a different header become the pinned one.
+    auto pinnedHeight = [this](float scroll) -> float {
+        int stickyIndex = -1;
+        for (int i = 0; i < static_cast<int>(entries_.size()); ++i)
+        {
+            if (!entries_[i].header) continue;
+            if (entries_[i].top <= scroll) stickyIndex = i;
+            else break;
+        }
+        return (stickyIndex >= 0 && entries_[stickyIndex].top < scroll - 0.5f) ? kHeaderHeight : 0.0f;
+    };
 
     for (const Entry& entry : entries_)
     {
         if (entry.header || entry.value != rowIndex) continue;
-        if (entry.top < scroll_ + covered) scroll_ = entry.top - covered;
-        else if (entry.top + entry.height > scroll_ + viewHeight) scroll_ = entry.top + entry.height - viewHeight;
+        float candidate = scroll_;
+        if (entry.top + entry.height > candidate + viewHeight) candidate = entry.top + entry.height - viewHeight;
+        for (int pass = 0; pass < 2; ++pass)
+        {
+            const float covered = pinnedHeight(candidate);
+            if (entry.top < candidate + covered) candidate = entry.top - covered;
+        }
+        scroll_ = candidate;
         break;
     }
     ClampScroll();
@@ -1654,24 +1668,43 @@ void MainWindow::HandleListKey(WPARAM key)
     case VK_NEXT:
     case VK_PRIOR:
     {
-        // Move the focus by one screenful of rows and let EnsureVisible do the
-        // only scrolling: mixing a pixel step with a row step made the two drift
-        // apart, and the focused row ended up outside the view.
+        // Page = move the content by one screenful and take the focus with it:
+        // the focused row keeps its place on screen, so the view really moves.
         const Layout layout = ComputeLayout();
         int visible = 0;
         for (const Entry& entry : entries_)
         {
             if (entry.header) continue;
             const float top = layout.list.top + entry.top - scroll_;
-            if (top + entry.height > layout.list.top && top < layout.list.bottom) ++visible;
+            if (top + entry.height > layout.list.top + kHeaderHeight && top < layout.list.bottom) ++visible;
         }
         if (visible < 1) visible = 1;
+
+        float anchorOffset = 0.0f;  // where the focused row sits now, in content pixels
+        if (focusRow_ >= 0)
+        {
+            for (const Entry& entry : entries_)
+            {
+                if (entry.header || entry.value != focusRow_) continue;
+                anchorOffset = entry.top - scroll_;
+                break;
+            }
+        }
+
         const int start = focusRow_ >= 0 ? focusRow_ : 0;
         int target = key == VK_NEXT ? start + visible : start - visible;
         if (target < 0) target = 0;
         if (target > rows - 1) target = rows - 1;
+
+        for (const Entry& entry : entries_)
+        {
+            if (entry.header || entry.value != target) continue;
+            scroll_ = entry.top - anchorOffset;
+            break;
+        }
         focusRow_ = target;
-        EnsureVisible(focusRow_);
+        ClampScroll();
+        EnsureVisible(focusRow_);  // edges and the pinned header still win
         Invalidate();
         AnnounceFocus();
         return;
@@ -2340,6 +2373,10 @@ void MainWindow::OnRightClick(int x, int y)
     float fx = static_cast<float>(x) / scale_;
     float fy = static_cast<float>(y) / scale_;
     Layout layout = ComputeLayout();
+
+    // A pinned header covers the row under it; the menu must not act on that row.
+    D2D1_RECT_F band{};
+    if (HeaderGroupAtPoint(fy, &band) >= 0) return;
 
     int row = RowAtPoint(fy, nullptr);
     if (row >= 0)
