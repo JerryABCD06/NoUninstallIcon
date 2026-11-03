@@ -1392,10 +1392,24 @@ void MainWindow::EnsureVisible(int rowIndex)
 {
     Layout layout = ComputeLayout();
     float viewHeight = layout.list.bottom - layout.list.top;
+
+    // A pinned group header floats over the top of the list, so a row scrolled to
+    // the very top would sit half behind it. Reserve its height while it is
+    // pinned; the check mirrors the one DrawList uses to decide to paint it.
+    float covered = 0.0f;
+    int stickyIndex = -1;
+    for (int i = 0; i < static_cast<int>(entries_.size()); ++i)
+    {
+        if (!entries_[i].header) continue;
+        if (entries_[i].top <= scroll_) stickyIndex = i;
+        else break;
+    }
+    if (stickyIndex >= 0 && entries_[stickyIndex].top < scroll_ - 0.5f) covered = kHeaderHeight;
+
     for (const Entry& entry : entries_)
     {
         if (entry.header || entry.value != rowIndex) continue;
-        if (entry.top < scroll_) scroll_ = entry.top;
+        if (entry.top < scroll_ + covered) scroll_ = entry.top - covered;
         else if (entry.top + entry.height > scroll_ + viewHeight) scroll_ = entry.top + entry.height - viewHeight;
         break;
     }
