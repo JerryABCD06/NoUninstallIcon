@@ -23,9 +23,9 @@ Everything here is something that failed at least once during development.
 
 ## Popup menus and dark mode
 
-The four menus the program shows — the row context menu, the language list, the
-autostart list, and the tray menu — are plain Win32 popup menus created with
-`CreatePopupMenu` and shown with `TrackPopupMenu`. They are drawn by the **theme engine**,
+The five popup menus — the row context menu, the search box menu, the language list, the
+autostart list (four in the window process) and the tray menu (in the watcher) — are plain
+Win32 popup menus created with `CreatePopupMenu` and shown with `TrackPopupMenu`. They are drawn by the **theme engine**,
 not by Direct2D, and `DWMWA_USE_IMMERSIVE_DARK_MODE` only affects the window frame. Out of
 the box they would stay light in dark mode.
 

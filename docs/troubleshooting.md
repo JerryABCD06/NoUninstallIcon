@@ -106,6 +106,14 @@ Task Manager reads `FileDescription` from the binary and chooses the string by t
 English (`No Uninstall Icon`) for exactly this reason. The in-window language setting
 affects the window, the menus and the About dialog, never the process name.
 
+## There is no "uninstall" entry in the Start menu
+
+By design. The installer creates a Start menu entry for the program and nothing else — a
+utility that exists to take "卸载 …" / "Uninstall …" entries out of that menu should not
+add one of its own. To remove the product, use **Settings → Apps → Installed apps**, or
+run `unins000.exe` from the installation folder. Either path also runs the cleanup step
+described in [build.md](build.md).
+
 ## Reporting a problem
 
 Include:
