@@ -89,3 +89,6 @@ Anything that depends on these should be verified by hand before a release.
 9. Tray menu → *Quit*: the window closes first, then the icon disappears.
 10. Sign out and back in with mode *Once*: the shortcut is hidden once, and no process
     stays behind.
+11. Run `Reset.cmd` from the portable archive: every hidden shortcut comes back, the
+    sign-in task is gone (`schtasks /query /tn NoUninstallIcon-AutoHide`), and the tray
+    icon is gone with it.
