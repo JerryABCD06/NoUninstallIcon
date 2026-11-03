@@ -107,7 +107,7 @@ void App::MergeRecords()
     }
 }
 
-void App::HandleToggle(int itemIndex, bool hidden)
+void App::HandleToggle(int itemIndex, bool hidden, bool undoable)
 {
     StateLock stateGuard;  // serialise with the other process
     if (!stateGuard.held())
@@ -185,7 +185,7 @@ void App::HandleToggle(int itemIndex, bool hidden)
                 ShowToast(i18n::T(L"error.store"), false);
                 return;
             }
-            ShowToast(i18n::Tf(L"toast.hiddenItem", {item.displayName}), true);
+            ShowToast(i18n::Tf(L"toast.hiddenItem", {item.displayName}), undoable);
             if (window_.Handle())
                 window_.Announce(i18n::Tf(L"a11y.announce.hidden", {item.displayName}));
         }
@@ -234,7 +234,7 @@ void App::HandleToggle(int itemIndex, bool hidden)
             // hidden; say so instead of letting the user think nothing happened.
             ShowToast(i18n::Tf(originallyHidden ? L"toast.stillHiddenItem" : L"toast.shownItem",
                                {item.displayName}),
-                      true);
+                      undoable);
             if (window_.Handle())
                 window_.Announce(i18n::Tf(originallyHidden ? L"a11y.announce.stillHidden" : L"a11y.announce.shown",
                                           {item.displayName}));
@@ -495,7 +495,7 @@ void App::HandleUndo()
         for (int i = 0; i < static_cast<int>(model_.items.size()); ++i)
         {
             if (model_.items[i].key != key) continue;
-            HandleToggle(i, !action.state);
+            HandleToggle(i, !action.state, false);  // the undo's own toast must not offer another
             break;
         }
     }

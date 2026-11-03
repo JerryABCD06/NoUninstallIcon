@@ -799,6 +799,34 @@ int MainWindow::HeaderGroupAtPoint(float y, D2D1_RECT_F* headerRect) const
     if (!model_ || entries_.empty()) return -1;
     Layout layout = ComputeLayout();
     if (y < layout.list.top || y > layout.list.bottom) return -1;
+
+    // A sticky header is painted at the top of the list, not at its scrolled
+    // position, so it has to be matched first; DrawList computes the same band.
+    int stickyIndex = -1;
+    for (int i = 0; i < static_cast<int>(entries_.size()); ++i)
+    {
+        if (!entries_[i].header) continue;
+        if (entries_[i].top <= scroll_) stickyIndex = i;
+        else break;
+    }
+    if (stickyIndex >= 0 && entries_[stickyIndex].top < scroll_ - 0.5f)
+    {
+        float pinnedTop = layout.list.top;
+        for (int i = stickyIndex + 1; i < static_cast<int>(entries_.size()); ++i)
+        {
+            if (!entries_[i].header) continue;
+            float nextTop = layout.list.top + entries_[i].top - scroll_;
+            if (nextTop < pinnedTop + kHeaderHeight) pinnedTop = nextTop - kHeaderHeight;
+            break;
+        }
+        if (y >= pinnedTop && y < pinnedTop + kHeaderHeight)
+        {
+            if (headerRect)
+                *headerRect = Rect(layout.list.left, pinnedTop, layout.list.right, pinnedTop + kHeaderHeight);
+            return entries_[stickyIndex].value;
+        }
+    }
+
     float contentY = y - layout.list.top + scroll_;
     for (const Entry& entry : entries_)
     {
@@ -1224,6 +1252,12 @@ void MainWindow::OnLeftDown(int x, int y)
         return;
     }
 
+    if (toastVisible_ && ContainsPoint(layout.toast, fx, fy))
+    {
+        // The toast covers the list; clicking it must not toggle a row behind.
+        return;
+    }
+
     if (ContainsPoint(layout.search, fx, fy))
     {
         SetFocusTarget(FocusTarget::Search);
@@ -1290,8 +1324,9 @@ void MainWindow::OnLeftDown(int x, int y)
         }
     }
 
-    int row = RowAtPoint(fy, nullptr);
-    if (row < 0 && ContainsPoint(layout.scrollbar, fx, fy))
+    // The scrollbar sits on top of the rows: test it before the row hit test,
+    // otherwise a press on the thumb toggles whatever row happens to be under it.
+    if (ContainsPoint(layout.scrollbar, fx, fy))
     {
         draggingThumb_ = true;
         dragStartY_ = fy;
@@ -1299,6 +1334,8 @@ void MainWindow::OnLeftDown(int x, int y)
         SetCapture(hwnd_);
         return;
     }
+
+    int row = RowAtPoint(fy, nullptr);
     if (row >= 0)
     {
         SetFocusTarget(FocusTarget::List);
@@ -1597,11 +1634,26 @@ void MainWindow::HandleListKey(WPARAM key)
         AnnounceFocus();
         return;
     case VK_NEXT:
-        ScrollTo(scroll_ + (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f);
-        return;
     case VK_PRIOR:
-        ScrollTo(scroll_ - (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f);
+    {
+        // Move the focus by a page as well, otherwise Space or Enter would act
+        // on a row that is no longer on screen.
+        const float page = (ComputeLayout().list.bottom - ComputeLayout().list.top) * 0.9f;
+        if (rows > 0)
+        {
+            const int start = focusRow_ >= 0 ? focusRow_ : 0;
+            const int step = static_cast<int>(page / kRowHeight);
+            int target = key == VK_NEXT ? start + (step > 0 ? step : 1) : start - (step > 0 ? step : 1);
+            if (target < 0) target = 0;
+            if (target > rows - 1) target = rows - 1;
+            focusRow_ = target;
+            EnsureVisible(focusRow_);
+            ScrollTo(scroll_ + (key == VK_NEXT ? page : -page));
+            Invalidate();
+            AnnounceFocus();
+        }
         return;
+    }
     case VK_SPACE:
         if (focusRow_ >= 0 && focusRow_ < rows)
         {

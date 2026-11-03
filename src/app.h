@@ -38,7 +38,7 @@ private:
     void StartScan();
     void FinishScan();
     void MergeRecords();
-    void HandleToggle(int itemIndex, bool hidden);
+    void HandleToggle(int itemIndex, bool hidden, bool undoable = true);
     void HandleRestoreAll();
     void HandleHideGroup(bool hide);
     void HandleAutostart(AutostartMode mode);
