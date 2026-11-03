@@ -372,6 +372,12 @@ card dismisses it.
 ## Licence
 
 MIT. Copyright (c) 2026 王云正 (JerryABCD06). See [LICENSE](LICENSE).
+
+The installer is built with [Inno Setup](https://jrsoftware.org/isinfo.php) by Jordan
+Russell and Martijn Laan. Its licence asks for an acknowledgement in the product
+documentation, which is offered here; nothing from Inno Setup is redistributed with this
+project, only installers it produced.
+
 ## If it crashes
 
 The program installs a top-level exception filter. On an unhandled exception it
