@@ -82,6 +82,31 @@ Output:
 Inno Setup, `installer/setup.iss`. It installs to `{autopf}\NoUninstallIcon`, offers a
 desktop shortcut, and creates the Start menu entry.
 
+Three things about it are worth knowing:
+
+**The wizard follows the system theme.** `WizardStyle=modern dynamic`; Inno Setup
+documents the three appearance modes as `light`, `dark` and `dynamic` ("automatically
+follows Windows system settings"). Change it to `modern light` or `modern dark` to force
+one.
+
+**It ships every language the program has.** Eleven `[Languages]` entries pointing at the
+compiler's own `.isl` files: English, Simplified and Traditional Chinese, Japanese,
+German, French, Spanish, Russian, Korean, Brazilian Portuguese and Italian. The language
+dialog is shown on start-up when more than one language is available, and the choice is
+remembered between runs.
+
+**The product name is localized.** `AppName` is a custom message, `{cm:AppName}`, whose
+value per language is the same string as that language's `app.title` — so the installer
+and the program agree word for word. The expansion happens in the language chosen at
+install time, and the result is what lands in the Start menu folder, the shortcut names,
+and the Apps & Features entry. The two constraints that come with this:
+
+- `AppId` is a fixed GUID. If it were left to default from `AppName`, the identity would
+  change with the language and the installer would treat each language as a different
+  product.
+- The installation directory stays `{autopf}\NoUninstallIcon`. A localized directory name
+  would move an upgrade to a second folder when the language changes.
+
 Uninstall order matters and is implemented in `[Code]`, not `[UninstallRun]`:
 
 1. `CurUninstallStepChanged(usUninstall)` runs **before** `[UninstallDelete]`.

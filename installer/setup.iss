@@ -1,21 +1,34 @@
-; Inno Setup script for "No Uninstall Icon".
-; Build with:  ISCC.exe installer\setup.iss
+; Inno Setup script for No Uninstall Icon.
+; Build with:  powershell -File tools\package.ps1   (or ISCC.exe installer\setup.iss)
+;
 ; The installer must run elevated because the application writes the hidden
 ; attribute on shortcuts that live under %ProgramData%.
+;
+; The product name is localized: [Setup] AppName is a custom message, expanded in
+; whichever language the user picks in the language dialog, and written into the
+; Start menu, the icons and the Apps & Features entry at install time. The
+; directory name stays an unlocalized identifier so an upgrade always lands in
+; the same place, and AppId is a fixed GUID so the installer is recognized as the
+; same product whatever language was chosen last time.
 
-#define AppName "我不需要卸载图标"
 #define AppVersion "0.1.0"
 #define AppExeName "NoUninstallIcon.exe"
 #define AppId "{{8E4B7C2A-3F1D-4A6B-9C5E-2D7F1A8B4C60}"
 
 [Setup]
 AppId={#AppId}
-AppName={#AppName}
+AppName={cm:AppName}
 AppVersion={#AppVersion}
-AppVerName={#AppName} {#AppVersion}
+AppVerName={cm:AppName} {#AppVersion}
 AppPublisher=王云正
+AppPublisherURL=https://github.com/JerryABCD06/
+AppSupportURL=https://github.com/JerryABCD06/
+AppUpdatesURL=https://github.com/JerryABCD06/
+VersionInfoProductName=No Uninstall Icon
+VersionInfoDescription=No Uninstall Icon Setup
+VersionInfoVersion={#AppVersion}
 DefaultDirName={autopf}\NoUninstallIcon
-DefaultGroupName={#AppName}
+DefaultGroupName={cm:AppName}
 DisableProgramGroupPage=yes
 OutputDir=..\dist
 OutputBaseFilename=NoUninstallIcon-Setup-{#AppVersion}
@@ -23,7 +36,8 @@ SetupIconFile=..\res\app.ico
 UninstallDisplayIcon={app}\{#AppExeName}
 Compression=lzma2/max
 SolidCompression=yes
-WizardStyle=modern
+; "dynamic" follows the Windows light/dark setting; light and dark force one.
+WizardStyle=modern dynamic
 ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 PrivilegesRequired=admin
@@ -38,10 +52,59 @@ AllowNoIcons=yes
 MinVersion=10.0.17763
 
 [Languages]
-Name: "chinesesimplified"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
-Name: "english"; MessagesFile: "compiler:Default.isl"
-Name: "chinesetraditional"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
-Name: "japanese"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "en"; MessagesFile: "compiler:Default.isl"
+Name: "zh_Hans"; MessagesFile: "compiler:Languages\ChineseSimplified.isl"
+Name: "zh_Hant"; MessagesFile: "compiler:Languages\ChineseTraditional.isl"
+Name: "ja"; MessagesFile: "compiler:Languages\Japanese.isl"
+Name: "de"; MessagesFile: "compiler:Languages\German.isl"
+Name: "fr"; MessagesFile: "compiler:Languages\French.isl"
+Name: "es"; MessagesFile: "compiler:Languages\Spanish.isl"
+Name: "ru"; MessagesFile: "compiler:Languages\Russian.isl"
+Name: "ko"; MessagesFile: "compiler:Languages\Korean.isl"
+Name: "pt_BR"; MessagesFile: "compiler:Languages\BrazilianPortuguese.isl"
+Name: "it"; MessagesFile: "compiler:Languages\Italian.isl"
+
+; The localized product name, taken from each language's app.title so the
+; installer and the program agree. The un-prefixed entries are the fallbacks.
+[CustomMessages]
+AppName=No Uninstall Icon
+en.AppName=No Uninstall Icon
+zh_Hans.AppName=我不需要卸载图标
+zh_Hant.AppName=我不需要卸載圖標
+ja.AppName=アンインストールアイコンは不要
+de.AppName=Keine Deinstallations-Symbole
+fr.AppName=Pas besoin d'icône de désinstallation
+es.AppName=No necesito el icono de desinstalación
+ru.AppName=Мне не нужна иконка удаления
+ko.AppName=제거 아이콘이 필요 없습니다
+pt_BR.AppName=Não preciso do ícone de desinstalação
+it.AppName=Non mi serve l'icona di disinstallazione
+
+CleanupNotStarted=The cleanup step could not be started. Some Start menu entries may stay hidden.
+en.CleanupNotStarted=The cleanup step could not be started. Some Start menu entries may stay hidden.
+zh_Hans.CleanupNotStarted=清理步骤无法启动，部分开始菜单项可能仍处于隐藏状态。
+zh_Hant.CleanupNotStarted=清理步驟無法啟動，部分開始功能表項目可能仍為隱藏。
+ja.CleanupNotStarted=クリーンアップを開始できませんでした。一部のスタート メニュー項目は非表示のままになる可能性があります。
+de.CleanupNotStarted=Der Aufräumschritt konnte nicht gestartet werden. Einige Startmenüeinträge bleiben möglicherweise ausgeblendet.
+fr.CleanupNotStarted=L'étape de nettoyage n'a pas pu démarrer. Certaines entrées du menu Démarrer risquent de rester masquées.
+es.CleanupNotStarted=No se pudo iniciar la limpieza. Es posible que algunas entradas del menú Inicio sigan ocultas.
+ru.CleanupNotStarted=Не удалось запустить очистку. Некоторые элементы меню «Пуск» могут остаться скрытыми.
+ko.CleanupNotStarted=정리를 시작할 수 없습니다. 일부 시작 메뉴 항목이 계속 숨겨져 있을 수 있습니다.
+pt_BR.CleanupNotStarted=Não foi possível iniciar a limpeza. Alguns itens do menu Iniciar podem continuar ocultos.
+it.CleanupNotStarted=Impossibile avviare la pulizia. Alcune voci del menu Start potrebbero restare nascoste.
+
+CleanupFailed=The cleanup step reported a problem (code %1). Some Start menu entries may still be hidden.
+en.CleanupFailed=The cleanup step reported a problem (code %1). Some Start menu entries may still be hidden.
+zh_Hans.CleanupFailed=清理步骤报告了问题（代码 %1），部分开始菜单项可能仍处于隐藏状态。
+zh_Hant.CleanupFailed=清理步驟回報了問題（代碼 %1），部分開始功能表項目可能仍為隱藏。
+ja.CleanupFailed=クリーンアップで問題が報告されました (コード %1)。一部のスタート メニュー項目は非表示のままになる可能性があります。
+de.CleanupFailed=Der Aufräumschritt hat ein Problem gemeldet (Code %1). Einige Startmenüeinträge bleiben möglicherweise ausgeblendet.
+fr.CleanupFailed=L'étape de nettoyage a signalé un problème (code %1). Certaines entrées du menu Démarrer risquent de rester masquées.
+es.CleanupFailed=La limpieza informó de un problema (código %1). Es posible que algunas entradas del menú Inicio sigan ocultas.
+ru.CleanupFailed=Очистка сообщила о проблеме (код %1). Некоторые элементы меню «Пуск» могут остаться скрытыми.
+ko.CleanupFailed=정리 중 문제가 보고되었습니다(코드 %1). 일부 시작 메뉴 항목이 계속 숨겨져 있을 수 있습니다.
+pt_BR.CleanupFailed=A limpeza relatou um problema (código %1). Alguns itens do menu Iniciar podem continuar ocultos.
+it.CleanupFailed=La pulizia ha segnalato un problema (codice %1). Alcune voci del menu Start potrebbero restare nascoste.
 
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
@@ -50,12 +113,12 @@ Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{
 Source: "..\build\{#AppExeName}"; DestDir: "{app}"; Flags: ignoreversion
 
 [Icons]
-Name: "{group}\{#AppName}"; Filename: "{app}\{#AppExeName}"
-Name: "{group}\{cm:UninstallProgram,{#AppName}}"; Filename: "{uninstallexe}"
-Name: "{autodesktop}\{#AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
+Name: "{group}\{cm:AppName}"; Filename: "{app}\{#AppExeName}"
+Name: "{group}\{cm:UninstallProgram,{cm:AppName}}"; Filename: "{uninstallexe}"
+Name: "{autodesktop}\{cm:AppName}"; Filename: "{app}\{#AppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{#AppName}}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{cm:AppName}}"; Flags: nowait postinstall skipifsilent
 
 ; The cleanup step runs from [Code] rather than [UninstallRun] so that a failure
 ; is visible: a silent failure would delete the program with shortcuts still
@@ -82,8 +145,7 @@ begin
     begin
       Log('Cleanup could not be started.');
       if not UninstallSilent then
-        MsgBox('The cleanup step could not be started. Some Start menu entries may stay hidden.',
-               mbError, MB_OK);
+        MsgBox(ExpandConstant('{cm:CleanupNotStarted}'), mbError, MB_OK);
     end
     else if ResultCode <> 0 then
     begin
@@ -91,8 +153,7 @@ begin
       // A silent uninstall must never wait on a dialog, and a message box would
       // be lost anyway; the log and the exit code are all we can offer there.
       if not UninstallSilent then
-        MsgBox('The cleanup step reported a problem (code ' + IntToStr(ResultCode) +
-               '). Some Start menu entries may still be hidden.', mbError, MB_OK);
+        MsgBox(FmtMessage(ExpandConstant('{cm:CleanupFailed}'), [IntToStr(ResultCode)]), mbError, MB_OK);
     end;
   end;
 end;
