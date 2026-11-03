@@ -881,7 +881,12 @@ int App::RunCleanup()
     if (HWND window = FindWindowW(L"NoUninstallIcon.MainWindow", nullptr))
     {
         LogLine(L"cleanup: closing the open window first");
-        PostMessageW(window, WM_CLOSE, 0, 0);
+        if (!PostMessageW(window, WM_CLOSE, 0, 0))
+        {
+            // A window running at a higher integrity level cannot be told to
+            // close from here; say so rather than pretending it worked.
+            LogLineF(L"cleanup: cannot close the window (err=%lu)", GetLastError());
+        }
         for (int tick = 0; tick < 40 && IsWindow(window); ++tick) Sleep(50);
     }
 

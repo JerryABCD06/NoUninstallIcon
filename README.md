@@ -144,6 +144,11 @@ The task always starts a plain `--background` watcher; whether the icon appears
 is decided by the mode it is told, not by how it was launched. A watcher started
 by hand with `--no-tray` never shows an icon in any mode.
 
+Writers serialise on two levels: a named mutex for the session, and a byte-range
+lock on `state.lock` beside the data file, because the mutex is per session while
+`state.dat` is per user and can even live on a share. Nested transactions on one
+thread (undo calls the toggle path) share the outer file lock.
+
 The mode travels through a small shared section (`Local\NoUninstallIcon.State`,
 a version and the mode) plus a manual-reset event
 (`Local\NoUninstallIcon.Changed`). The manual reset means a change published

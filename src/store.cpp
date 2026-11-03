@@ -157,7 +157,13 @@ std::wstring StateFilePath()
     return JoinPath(GetDataDir(), kFile);
 }
 
-namespace { constexpr wchar_t kStateMutex[] = L"Local\\NoUninstallIcon.StateFile"; }
+namespace {
+constexpr wchar_t kStateMutex[] = L"Local\\NoUninstallIcon.StateFile";
+// A byte-range lock cannot be taken twice by the same process, while the mutex is
+// recursive. Undo takes a lock and then calls the toggle path, which takes one
+// again, so nested transactions on one thread share the outermost file lock.
+thread_local int gLockDepth = 0;
+}  // namespace
 
 StateLock::StateLock()
 {
@@ -172,8 +178,12 @@ StateLock::StateLock()
     if (!held_)
     {
         LogLineF(L"state lock: not acquired (%lu)", wait);
+        CloseHandle(mutex_);
+        mutex_ = nullptr;
         return;
     }
+
+    if (gLockDepth++ > 0) return;  // an enclosing transaction already holds the file lock
 
     // The mutex is per-session, and state.dat is per-user: a second session, or
     // a portable copy used from another machine, would not be excluded by it.
@@ -202,14 +212,19 @@ StateLock::StateLock()
 
 StateLock::~StateLock()
 {
-    if (lockFile_ && lockFile_ != INVALID_HANDLE_VALUE)
+    if (held_ && --gLockDepth == 0)
     {
-        if (fileLocked_)
+        // The outermost transaction releases the cross-session lock.
+        if (lockFile_ && lockFile_ != INVALID_HANDLE_VALUE)
         {
-            OVERLAPPED overlay{};
-            UnlockFileEx(lockFile_, 0, 1, 0, &overlay);
+            if (fileLocked_)
+            {
+                OVERLAPPED overlay{};
+                UnlockFileEx(lockFile_, 0, 1, 0, &overlay);
+            }
+            CloseHandle(lockFile_);
+            lockFile_ = nullptr;
         }
-        CloseHandle(lockFile_);
     }
     if (held_) ReleaseMutex(mutex_);
     if (mutex_) CloseHandle(mutex_);
