@@ -3,6 +3,7 @@
 #include <cstdarg>
 #include <share.h>
 #include <sys/stat.h>
+#include <shlobj.h>
 
 std::wstring Widen(std::string_view text)
 {
@@ -169,7 +170,10 @@ bool EnsureDirectory(const std::wstring& path)
 {
     if (path.empty()) return false;
     if (CreateDirectoryW(path.c_str(), nullptr)) return true;
-    return GetLastError() == ERROR_ALREADY_EXISTS;
+    if (GetLastError() == ERROR_ALREADY_EXISTS) return true;
+    // The parent may be missing too, so let the shell create the whole chain.
+    const int result = SHCreateDirectoryExW(nullptr, path.c_str(), nullptr);
+    return result == ERROR_SUCCESS || result == ERROR_ALREADY_EXISTS || result == ERROR_FILE_EXISTS;
 }
 
 bool ReadWholeFile(const std::wstring& path, std::string& out)

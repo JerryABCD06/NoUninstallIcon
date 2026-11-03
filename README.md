@@ -62,7 +62,7 @@ was already hidden before this tool touched it stays hidden when it is released.
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat` | Managed records and settings (tab separated, escaped, atomically replaced) |
 | `%LOCALAPPDATA%\NoUninstallIcon\state.dat.bak` | Copy of the previous save, used if the primary file is damaged |
 | `%LOCALAPPDATA%\NoUninstallIcon\state.lock` | Empty file used for the cross-session lock |
-| `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Written only with `--log` or `NOUI_LOG=1`; trimmed to 1 MB |
+| `%LOCALAPPDATA%\NoUninstallIcon\log.txt` | Written only with `--log` or `NOUI_LOG=1`; deleted once it passes 1 MB |
 | Task `NoUninstallIcon-AutoHide` | Sign-in task, created only when the user enables it |
 
 ## Portable mode
@@ -122,7 +122,7 @@ managed shortcut its original attributes back.
 | `--capture <png>` | Show the real window, grab it to PNG, exit. |
 | `--dump <txt>` | Scan and write a classification report. |
 | `--selftest` | Hide/unhide a fixture entry and verify the invariants. |
-| `--log` | Write `log.txt` for this run. Also enabled when `NOUI_LOG=1` is set. |
+| `--log` | Write `log.txt`. Also passed to a watcher this run starts, and to the elevated copy of the window. `NOUI_LOG=1` does the same from the environment; `NOUI_LOG=0` keeps it off. |
 
 The watcher obeys the stored mode, it does not choose it. With the mode set to
 *Off* or *Once* it applies nothing and returns, because those modes are defined as
@@ -297,4 +297,6 @@ writes `crash-YYYYMMDD-HHMMSS.dmp` plus `crash.txt` (exception code and faulting
 address) next to `state.dat`, then exits. Attach the dump when reporting a problem —
 it is the only way to tell a threading bug from a drawing bug. The ordinary log is
 off by default; run with `--log`, or set `NOUI_LOG=1`, when you need the sequence
-of events that led there.
+of events that led there. Both survive the self-elevation, and both reach a watcher
+started from the window. A watcher started by the sign-in task never logs, because
+the task has no command line to inherit.

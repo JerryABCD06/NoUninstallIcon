@@ -1145,7 +1145,7 @@ bool App::RenderScreenshot(const std::wstring& path, bool dark)
                        [&](ID2D1RenderTarget* target) { window_.RenderTo(target, width, height, dark); });
 }
 
-void App::WriteDump(const std::wstring& path)
+bool App::WriteDump(const std::wstring& path)
 {
     ScanOutcome outcome;
     CoInitializeEx(nullptr, COINIT_APARTMENTTHREADED | COINIT_DISABLE_OLE1DDE);
@@ -1179,5 +1179,8 @@ void App::WriteDump(const std::wstring& path)
         text += Fmt(L"%3d %s %s  (sort=%s)\r\n", row, item->isUninstall ? L"U" : L"-", item->displayName.c_str(),
                     item->sortName.c_str());
     }
-    WriteWholeFileAtomic(path, Narrow(text));
+    // The parent may be the data directory, which logging used to create.
+    const size_t slash = path.find_last_of(L"\\/");
+    if (slash != std::wstring::npos && slash > 0) EnsureDirectory(path.substr(0, slash));
+    return WriteWholeFileAtomic(path, Narrow(text));
 }

@@ -32,7 +32,7 @@ public:
     void SetPreviewScroll(int pixels) { window_.SetPreviewScroll(pixels); }
     void ScanBlocking();
     bool RenderScreenshot(const std::wstring& path, bool dark);
-    void WriteDump(const std::wstring& path);
+    bool WriteDump(const std::wstring& path);
 
 private:
     void StartScan();

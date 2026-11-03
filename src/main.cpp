@@ -162,8 +162,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
         return app.RenderScreenshot(options.path, dark) ? 0 : 1;
     }
     case Options::Mode::Dump:
-        app.WriteDump(options.path);
-        return 0;
+        return app.WriteDump(options.path) ? 0 : 1;
     case Options::Mode::Apply:
         return app.RunSilentApply();
     case Options::Mode::Cleanup:
@@ -197,7 +196,7 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
 
     if (!IsElevated() && !skipElevation)
     {
-        bool launched = RelaunchElevated(options.log ? L"--log" : nullptr);
+        bool launched = RelaunchElevated(LogEnabled() ? L"--log" : nullptr);
         if (!launched)
             MessageBoxW(nullptr, i18n::T(L"error.elevation"), i18n::T(L"app.title"), MB_OK | MB_ICONWARNING);
         return launched ? 0 : 1;
@@ -241,7 +240,7 @@ int WINAPI wWinMain(HINSTANCE instance, HINSTANCE, PWSTR, int showCommand)
     if (!logging)
     {
         wchar_t value[8]{};
-        logging = GetEnvironmentVariableW(L"NOUI_LOG", value, 8) > 0;
+        logging = GetEnvironmentVariableW(L"NOUI_LOG", value, 8) > 0 && value[0] != L'0';
     }
     SetLogEnabled(logging);
     LocalFree(argv);
