@@ -285,7 +285,10 @@ bool DarkModeMenuApiAvailable()
 struct UxthemeApi
 {
     using SetPreferredAppModeFn = int(WINAPI*)(int);
-    using AllowDarkModeForWindowFn = BOOL(WINAPI*)(HWND, BOOL);
+    // The export takes and returns a single byte, despite every header and sample
+    // writing BOOL. Only the low byte is read on the way in, so the flag type here
+    // is the honest one.
+    using AllowDarkModeForWindowFn = bool(WINAPI*)(HWND, bool);
     using FlushMenuThemesFn = void(WINAPI*)();
 
     SetPreferredAppModeFn setPreferredAppMode = nullptr;
@@ -332,9 +335,11 @@ void ApplyNativeDarkMode(HWND window, bool dark)
     // is the same registry value this program reads. Forcing a mode here would
     // let the menus disagree with the window when the app mode differs.
     if (api.setPreferredAppMode) api.setPreferredAppMode(1);
-    api.allowDarkModeForWindow(window, dark ? TRUE : FALSE);
+    api.allowDarkModeForWindow(window, dark);
 
-    SetWindowTheme(window, dark ? L"DarkMode_Explorer" : L"Explorer", nullptr);
+    // Light mode passes null, which removes the theme association instead of
+    // pinning one to a window that had none before this existed.
+    SetWindowTheme(window, dark ? L"DarkMode_Explorer" : nullptr, nullptr);
     if (api.flushMenuThemes) api.flushMenuThemes();
 }
 

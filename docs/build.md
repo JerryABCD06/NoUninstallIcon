@@ -82,7 +82,7 @@ Output:
 Inno Setup, `installer/setup.iss`. It installs to `{autopf}\NoUninstallIcon`, offers a
 desktop shortcut, and creates the Start menu entry.
 
-Three things about it are worth knowing:
+Four things about it are worth knowing:
 
 **The wizard follows the system theme.** `WizardStyle=modern dynamic`; Inno Setup
 documents the three appearance modes as `light`, `dark` and `dynamic` ("automatically
@@ -107,6 +107,16 @@ and the Apps & Features entry. The two constraints that come with this:
 - The installation directory stays `{autopf}\NoUninstallIcon`. A localized directory name
   would move an upgrade to a second folder when the language changes.
 
+**It removes the uninstall shortcut an older version left behind.** Deleting the `[Icons]`
+entry does not delete a shortcut that a previous installer created: an upgrade installs
+over the old one and leaves it in place. `CurStepChanged(ssPostInstall)` therefore walks
+`{group}` and deletes any `.lnk` whose target is this installation's `unins000.exe` — the
+application shortcut points at the exe and survives. Tested by installing a build that had
+the shortcut and upgrading to one that does not. Three limits are worth knowing: it needs
+`WScript.Shell` to read a shortcut's target and stays silent (logged) if that is
+unavailable; it only looks at `{group}`, which Inno points at the *previous* group on
+upgrade, so a language change is still covered; and an older install in a different Start
+menu folder is out of reach.
 There is deliberately **no uninstall shortcut** in the Start menu. A program whose whole
 purpose is to remove "卸载 …" entries from that menu should not add one; the product is
 removed through *Settings → Apps → Installed apps*, or by running `unins000.exe` from the

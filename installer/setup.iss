@@ -142,27 +142,43 @@ end;
 procedure RemoveStaleUninstallShortcut();
 var
   FindRec: TFindRec;
-  Group, ItemPath, Target: String;
+  Group, ItemPath, Target, Uninstaller: String;
   Shell: Variant;
 begin
+  Uninstaller := ExpandConstant('{uninstallexe}');
   Group := ExpandConstant('{group}');
+  // Both constants are used as the deletion criterion, so refuse to run if either
+  // is empty rather than treat every unreadable shortcut as a match.
+  if (Uninstaller = '') or (Group = '') then
+    Exit;
   if not FindFirst(AddBackslash(Group) + '*.lnk', FindRec) then
     Exit;
+
+  try
+    Shell := CreateOleObject('WScript.Shell');
+  except
+    Log('Shortcut cleanup skipped: WScript.Shell is unavailable.');
+    FindClose(FindRec);
+    Exit;
+  end;
+
   try
     repeat
       if (FindRec.Attributes and FILE_ATTRIBUTE_DIRECTORY) = 0 then
       begin
         ItemPath := AddBackslash(Group) + FindRec.Name;
+        Target := '';
         try
-          Shell := CreateOleObject('WScript.Shell');
           Target := Shell.CreateShortcut(ItemPath).TargetPath;
         except
-          Target := '';
+          Log('Shortcut cleanup could not read the target of ' + FindRec.Name + '.');
         end;
-        if CompareText(Target, ExpandConstant('{uninstallexe}')) = 0 then
+        if (Target <> '') and (CompareText(Target, Uninstaller) = 0) then
         begin
-          Log('Removing a stale uninstall shortcut: ' + FindRec.Name);
-          DeleteFile(ItemPath);
+          if DeleteFile(ItemPath) then
+            Log('Removed a stale uninstall shortcut: ' + FindRec.Name)
+          else
+            Log('Shortcut cleanup could not remove ' + FindRec.Name + '.');
         end;
       end;
     until not FindNext(FindRec);
@@ -176,6 +192,7 @@ begin
   if CurStep = ssPostInstall then
     RemoveStaleUninstallShortcut();
 end;
+
 procedure CurUninstallStepChanged(CurUninstallStep: TUninstallStep);
 var
   ResultCode: Integer;
