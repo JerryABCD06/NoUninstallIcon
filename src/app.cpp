@@ -874,6 +874,17 @@ int App::RunSelfTest()
 
 int App::RunCleanup()
 {
+    // An open window holds its own idea of what is managed. If it touched a
+    // shortcut after the restore below, the uninstaller would delete the program
+    // and leave that shortcut hidden with nobody to release it, so close it the
+    // same way the tray's Quit does, and wait for it to go.
+    if (HWND window = FindWindowW(L"NoUninstallIcon.MainWindow", nullptr))
+    {
+        LogLine(L"cleanup: closing the open window first");
+        PostMessageW(window, WM_CLOSE, 0, 0);
+        for (int tick = 0; tick < 40 && IsWindow(window); ++tick) Sleep(50);
+    }
+
     // Uninstalling must leave nothing running: tell the watcher the mode is off
     // and wait for it to go, so it cannot re-hide shortcuts during the restore.
     // Persist Off as well: cleanup runs before the uninstaller deletes the
