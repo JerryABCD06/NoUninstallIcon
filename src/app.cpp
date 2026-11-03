@@ -133,6 +133,19 @@ void App::HandleToggle(int itemIndex, bool hidden)
             record->target = item.target;
             record->firstSeen = NowSeconds();
             created = true;
+
+            // Record the intent before touching the file. A crash between the
+            // attribute change and the final save then leaves a record that says
+            // "not hidden" instead of a hidden shortcut nothing remembers, and
+            // the record it does leave carries the original attributes.
+            if (!store_.Save())
+            {
+                store_.Erase(item.key);
+                MergeRecords();
+                window_.ModelChanged();
+                ShowToast(i18n::T(L"error.store"), false);
+                return;
+            }
         }
 
         ApplyStatus status = SetShortcutHidden(item.path, true);
@@ -293,6 +306,39 @@ void App::HandleHideGroup(bool hide)
 
     int changed = 0;
     std::vector<std::wstring> touched;
+
+    if (hide)
+    {
+        // Same rule as a single hide: every intent is recorded before any file is
+        // touched, so a crash in the middle of a batch cannot orphan a shortcut
+        // that this tool has no record of.
+        bool recordedAny = false;
+        for (int index : model_.rows)
+        {
+            ShortcutItem& item = model_.items[index];
+            if (!item.isUninstall) continue;
+            if (hide == (item.managed && item.desiredHidden)) continue;
+            if (store_.Find(item.key)) continue;
+            StoredRecord& record = store_.Ensure(item.key);
+            record.path = item.path;
+            DWORD attributes = 0;
+            ReadAttributes(item.path, attributes);
+            record.originalAttributes = attributes;
+            record.displayName = item.displayName;
+            record.target = item.target;
+            record.firstSeen = NowSeconds();
+            recordedAny = true;
+        }
+        if (recordedAny && !store_.Save())
+        {
+            store_.Records() = beforeRecords;
+            MergeRecords();
+            window_.ModelChanged();
+            ShowToast(i18n::T(L"error.store"), false);
+            return;
+        }
+    }
+
     // Act on what the list is showing: the header count is the filtered count,
     // so the button must not reach entries the user cannot see.
     for (int index : model_.rows)
