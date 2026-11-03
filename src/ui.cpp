@@ -22,6 +22,7 @@ constexpr float kToolbarTop = 80.0f;
 constexpr float kToolbarHeight = 36.0f;
 constexpr float kRowHeight = 48.0f;
 constexpr float kHeaderHeight = 34.0f;
+
 constexpr float kFooterHeight = 46.0f;
 constexpr float kRadius = 6.0f;
 constexpr float kCheckLeft = 28.0f;
@@ -796,6 +797,18 @@ D2D1_RECT_F MainWindow::GroupActionRect(const D2D1_RECT_F& header, int group)
     return Rect(right - labelWidth - 24.0f, header.top + 4.0f, right, header.bottom - 4.0f);
 }
 
+float MainWindow::PinnedHeaderHeightAt(const std::vector<Entry>& entries, float scroll)
+{
+    int stickyIndex = -1;
+    for (int i = 0; i < static_cast<int>(entries.size()); ++i)
+    {
+        if (!entries[i].header) continue;
+        if (entries[i].top <= scroll) stickyIndex = i;
+        else break;
+    }
+    return (stickyIndex >= 0 && entries[stickyIndex].top < scroll - 0.5f) ? kHeaderHeight : 0.0f;
+}
+
 int MainWindow::HeaderGroupAtPoint(float y, D2D1_RECT_F* headerRect) const
 {
     if (!model_ || entries_.empty()) return -1;
@@ -1403,16 +1416,7 @@ void MainWindow::EnsureVisible(int rowIndex)
     // How much of the top a pinned group header covers at a given scroll offset.
     // It has to be asked about the destination, not the current position: moving
     // up across a group boundary makes a different header become the pinned one.
-    auto pinnedHeight = [this](float scroll) -> float {
-        int stickyIndex = -1;
-        for (int i = 0; i < static_cast<int>(entries_.size()); ++i)
-        {
-            if (!entries_[i].header) continue;
-            if (entries_[i].top <= scroll) stickyIndex = i;
-            else break;
-        }
-        return (stickyIndex >= 0 && entries_[stickyIndex].top < scroll - 0.5f) ? kHeaderHeight : 0.0f;
-    };
+    const auto pinnedHeight = [this](float scroll) { return PinnedHeaderHeightAt(entries_, scroll); };
 
     for (const Entry& entry : entries_)
     {
@@ -1671,12 +1675,16 @@ void MainWindow::HandleListKey(WPARAM key)
         // Page = move the content by one screenful and take the focus with it:
         // the focused row keeps its place on screen, so the view really moves.
         const Layout layout = ComputeLayout();
+        // Only the area below a pinned header is usable, and only rows that are
+        // fully on screen count: counting a partially visible row made the next
+        // page skip a row that was then never shown.
+        const float topBound = layout.list.top + PinnedHeaderHeightAt(entries_, scroll_);
         int visible = 0;
         for (const Entry& entry : entries_)
         {
             if (entry.header) continue;
             const float top = layout.list.top + entry.top - scroll_;
-            if (top + entry.height > layout.list.top + kHeaderHeight && top < layout.list.bottom) ++visible;
+            if (top >= topBound && top + entry.height <= layout.list.bottom) ++visible;
         }
         if (visible < 1) visible = 1;
 

@@ -124,6 +124,8 @@ private:
     void DrawList(const Layout& layout);
     void DrawGroupHeader(const D2D1_RECT_F& rect, int group, bool sticky);
     D2D1_RECT_F GroupActionRect(const D2D1_RECT_F& header, int group);
+    // How much of the list top a pinned group header covers at this offset.
+    static float PinnedHeaderHeightAt(const std::vector<Entry>& entries, float scroll);
     int HeaderGroupAtPoint(float y, D2D1_RECT_F* headerRect) const;
     bool AllUninstallHidden() const;
     void DrawRow(const Entry& entry, const D2D1_RECT_F& rect, int rowIndex, bool focused);
