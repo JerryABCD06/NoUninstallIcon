@@ -45,7 +45,7 @@ if ($LASTEXITCODE -ne 0) {
 }
 
 if (Test-Path $zip) { Remove-Item $zip -Force }
-Compress-Archive -Path $exe, (Join-Path $root 'README.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'portable'), `
+Compress-Archive -Path $exe, (Join-Path $root 'Reset.cmd'), (Join-Path $root 'README.md'), (Join-Path $root 'LICENSE'), (Join-Path $root 'portable'), `
                  (Join-Path $root 'docs') `
                  -DestinationPath $zip -CompressionLevel Optimal
 

@@ -133,6 +133,12 @@ instead of failing.
 
 `NOUI_DATA_DIR` overrides both choices and is what the tests use.
 
+The archive also carries `Reset.cmd`. Run it to undo everything the program did —
+every hidden shortcut gets its original attributes back, the sign-in task is removed and
+the watcher stops — without deleting the program. It asks for elevation once, because
+shortcuts under `%ProgramData%` and the scheduled task need it. This is the portable
+equivalent of uninstalling: the folder itself is yours to delete afterwards.
+
 The sign-in task stores an absolute path, so enabling automatic hiding while running
 from a removable drive will break once the drive letter changes.
 

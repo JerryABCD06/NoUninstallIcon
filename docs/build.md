@@ -75,7 +75,7 @@ Output:
 | Artefact | Content |
 |---|---|
 | `dist\NoUninstallIcon-Setup-0.1.0.exe` | installer, including the `--cleanup` hook |
-| `dist\NoUninstallIcon-portable-0.1.0.zip` | `NoUninstallIcon.exe`, `README.md`, `docs\`, `LICENSE`, `portable` |
+| `dist\NoUninstallIcon-portable-0.1.0.zip` | `NoUninstallIcon.exe`, `Reset.cmd`, `README.md`, `docs\`, `LICENSE`, `portable` |
 
 ## The installer
 
