@@ -11,7 +11,7 @@
 ; the same place, and AppId is a fixed GUID so the installer is recognized as the
 ; same product whatever language was chosen last time.
 
-#define AppVersion "0.1.0"
+#define AppVersion "0.1.1"
 #define AppExeName "NoUninstallIcon.exe"
 #define AppId "{{8E4B7C2A-3F1D-4A6B-9C5E-2D7F1A8B4C60}"
 
@@ -106,6 +106,19 @@ ko.CleanupFailed=정리 중 문제가 보고되었습니다(코드 %1). 일부 �
 pt_BR.CleanupFailed=A limpeza relatou um problema (código %1). Alguns itens do menu Iniciar podem continuar ocultos.
 it.CleanupFailed=La pulizia ha segnalato un problema (codice %1). Alcune voci del menu Start potrebbero restare nascoste.
 
+ForceClosePrompt=%1 cannot be shut down safely. Force it to close?
+en.ForceClosePrompt=%1 cannot be shut down safely. Force it to close?
+zh_Hans.ForceClosePrompt=无法安全退出 %1，是否强制关闭？
+zh_Hant.ForceClosePrompt=無法安全退出 %1，是否強制關閉？
+ja.ForceClosePrompt=%1 を安全に終了できません。強制終了しますか？
+de.ForceClosePrompt=%1 kann nicht sauber beendet werden. Erzwungen beenden?
+fr.ForceClosePrompt=Impossible d'arrêter %1 proprement. Forcer la fermeture ?
+es.ForceClosePrompt=No se puede cerrar %1 de forma segura. ¿Forzar el cierre?
+ru.ForceClosePrompt=Не удалось безопасно закрыть %1. Принудительно завершить?
+ko.ForceClosePrompt=%1을(를) 안전하게 종료할 수 없습니다. 강제로 종료할까요?
+pt_BR.ForceClosePrompt=Não foi possível encerrar %1 com segurança. Forçar o encerramento?
+it.ForceClosePrompt=Impossibile chiudere %1 correttamente. Forzarne la chiusura?
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
@@ -187,8 +200,81 @@ begin
   end;
 end;
 
+// A running watcher keeps its executable mapped, so Setup cannot replace it
+// until the watcher leaves. It is asked to leave through --stop-watcher, which
+// travels over the shared section and changes nothing on disk. Versions before
+// 0.1.1 do not know that switch, and an unknown argument makes them open the
+// window instead, so the switch is only used when the installed build supports
+// it. When the watcher will not go, the user is offered a forced close.
+function CanStopSafely(const ExePath: String): Boolean;
+var
+  MS, LS: Cardinal;
+begin
+  // 0.1.1.0 packs as MS = $00000001 (major 0, minor 1) and LS = $00010000
+  // (build 1, revision 0), which is how GetVersionNumbers reports a file version.
+  Result := False;
+  if not FileExists(ExePath) then
+    Exit;
+  if not GetVersionNumbers(ExePath, MS, LS) then
+    Exit;
+  Result := (MS > $00000001) or ((MS = $00000001) and (LS >= $00010000));
+end;
+
+procedure AskWatcherToLeave(const ExePath: String);
+var
+  ResultCode: Integer;
+begin
+  if Exec(ExePath, '--stop-watcher', '', SW_HIDE, ewWaitUntilTerminated, ResultCode) then
+    Log('Asked the watcher to stop (exit code ' + IntToStr(ResultCode) + ').')
+  else
+    Log('Could not run --stop-watcher.');
+end;
+
+procedure ForceCloseRunningCopies();
+var
+  ResultCode: Integer;
+begin
+  Log('Forcing every running copy of {#AppExeName} to close.');
+  Exec(ExpandConstant('{sys}\taskkill.exe'), '/F /IM {#AppExeName}', '', SW_HIDE,
+       ewWaitUntilTerminated, ResultCode);
+  Log('taskkill returned ' + IntToStr(ResultCode) + '.');
+  // Give the process a moment to release its image file and its mutex.
+  Sleep(1500);
+end;
+
+procedure EnsureWatcherStopped();
+var
+  ExePath: String;
+begin
+  ExePath := ExpandConstant('{app}\{#AppExeName}');
+  if not FileExists(ExePath) then
+    Exit;  // a first install has no running copy to worry about
+
+  if CanStopSafely(ExePath) then
+    AskWatcherToLeave(ExePath);
+
+  if not CheckForMutexes('Local\NoUninstallIcon.Background') then
+    Exit;  // it left, or was never there
+
+  if WizardSilent then
+  begin
+    // Nobody to ask; an unattended upgrade has to make progress on its own.
+    Log('The watcher is still running and Setup is silent; forcing it closed.');
+    ForceCloseRunningCopies();
+    Exit;
+  end;
+
+  if MsgBox(FmtMessage(ExpandConstant('{cm:ForceClosePrompt}'), [ExpandConstant('{cm:AppName}')]),
+            mbConfirmation, MB_YESNO) = IDYES then
+    ForceCloseRunningCopies()
+  else
+    Log('The user declined to force the running instance closed.');
+end;
+
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
+  if CurStep = ssInstall then
+    EnsureWatcherStopped();
   if CurStep = ssPostInstall then
     RemoveStaleUninstallShortcut();
 end;

@@ -8,6 +8,12 @@
 // and the watcher runs elevated.
 namespace session {
 
+// Published through the same channel as a mode, to ask a running watcher to
+// leave without touching the stored mode. The watcher stops on any value that is
+// neither Watch nor Silent, so this reaches watchers built before it existed.
+// It must stay outside 0..3, and away from -1, which means "nothing published".
+constexpr int kModeStopRequest = -2;
+
 // Maps the shared section and event. Safe to call more than once.
 bool Init();
 

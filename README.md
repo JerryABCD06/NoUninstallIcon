@@ -175,8 +175,8 @@ The uninstall order and the cleanup hook are described in [docs/build.md](docs/b
 powershell -File tools\package.ps1        :: installer and portable zip, unsigned
 ```
 
-Output: `dist\NoUninstallIcon-Setup-0.1.0.exe` and
-`dist\NoUninstallIcon-portable-0.1.0.zip`. The installer follows the system dark/light
+Output: `dist\NoUninstallIcon-Setup-0.1.1.exe` and
+`dist\NoUninstallIcon-portable-0.1.1.zip`. The installer follows the system dark/light
 theme, offers all eleven languages the program has, and shows the product name in the
 language chosen for the install. It adds no "uninstall" shortcut to the Start menu:
 that menu is what this program cleans up. Use *Settings → Apps* to remove the product.
@@ -194,6 +194,7 @@ managed shortcut its original attributes back.
 | `--background --no-tray` | Same, and never shows an icon whatever the mode says. |
 | `--restore` | Restore every managed shortcut and forget them. |
 | `--cleanup` | Remove the sign-in task, then `--restore` (used by the uninstaller). |
+| `--stop-watcher` | Ask a running watcher to leave, without touching the stored mode (used by the installer before it replaces the executable). |
 | `--screenshot <png> [--theme light\|dark] [--about]` | Off-screen render of the window, for testing. |
 | `--capture <png>` | Show the real window, grab it to PNG, exit. |
 | `--dump <txt>` | Scan and write a classification report. |

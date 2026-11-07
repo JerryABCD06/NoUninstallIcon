@@ -121,6 +121,17 @@ LRESULT CALLBACK WindowProc(HWND window, UINT message, WPARAM wparam, LPARAM lpa
         return 0;
     }
 
+    if (message == WM_CLOSE)
+    {
+        // Ignored on purpose. DefWindowProc would destroy the window and leave
+        // the process running with no icon and no way to be reached, which is
+        // what an installer's Restart Manager attempt used to produce. The
+        // watcher leaves through --stop-watcher or a mode change, and the Quit
+        // command calls PostQuitMessage directly rather than closing this window.
+        LogLineF(L"tray: ignoring WM_CLOSE");
+        return 0;
+    }
+
     if (gTaskbarCreated && message == gTaskbarCreated)
     {
         // Explorer restarted and dropped the icon; put it back.

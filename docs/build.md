@@ -37,7 +37,7 @@ The version lives in four places and they must agree:
 | `installer/setup.iss` | `#define AppVersion`, which also names the setup file |
 | `tools/package.ps1` | the artefact names it expects to produce and verify |
 
-Current version: **0.1.0**.
+Current version: **0.1.1**.
 
 ## The display name
 
@@ -74,15 +74,15 @@ powershell -File tools\package.ps1 -Sign    # test build, signed
 It compiles the installer, builds the portable zip, and verifies the signatures:
 
 ```
-[package] ok (unsigned): exe 566 KB, setup 2565 KB, zip 594 KB
+[package] ok (unsigned): exe 566 KB, setup 2566 KB, zip 595 KB
 ```
 
 Output:
 
 | Artefact | Content |
 |---|---|
-| `dist\NoUninstallIcon-Setup-0.1.0.exe` | installer, including the `--cleanup` hook |
-| `dist\NoUninstallIcon-portable-0.1.0.zip` | `NoUninstallIcon.exe`, `Reset.cmd`, `README.md`, `docs\`, `LICENSE`, `portable` |
+| `dist\NoUninstallIcon-Setup-0.1.1.exe` | installer, including the `--cleanup` hook |
+| `dist\NoUninstallIcon-portable-0.1.1.zip` | `NoUninstallIcon.exe`, `Reset.cmd`, `README.md`, `docs\`, `LICENSE`, `portable` |
 
 ## The installer
 
@@ -114,6 +114,17 @@ and the Apps & Features entry. The two constraints that come with this:
 - The installation directory stays `{autopf}\NoUninstallIcon`. A localized directory name
   would move an upgrade to a second folder when the language changes.
 
+**It stops a running instance before it copies anything.** A running executable cannot
+be replaced, so `CurStepChanged(ssInstall)` runs `NoUninstallIcon.exe --stop-watcher`
+when the installed build is 0.1.1 or newer. That switch publishes a request over the
+shared section and writes nothing to `state.dat`, so the stored mode survives the
+upgrade. Builds older than 0.1.1 do not know the switch — and an unknown argument makes
+them open the window — so the installer checks the installed file's version first and
+otherwise offers a forced close, prompting in an interactive install and acting on its
+own in a silent one. Verified against both cases: an installed 0.1.0 produced
+`The watcher is still running and Setup is silent; forcing it closed. / taskkill returned 0`,
+and an installed 0.1.1 produced `Asked the watcher to stop (exit code 0)` with
+`state.dat` byte-identical afterwards.
 **It removes the uninstall shortcut an older version left behind.** Deleting the `[Icons]`
 entry does not delete a shortcut that a previous installer created: an upgrade installs
 over the old one and leaves it in place. `CurStepChanged(ssPostInstall)` therefore walks

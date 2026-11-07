@@ -22,6 +22,7 @@ struct Options
         CrashTest,
         Restore,
         Cleanup,
+        StopWatcher,
         SelfTest,
     };
 
@@ -67,6 +68,10 @@ Options ParseOptions(int argc, wchar_t** argv)
         else if (EqualsI(arg, L"--cleanup"))
         {
             options.mode = Options::Mode::Cleanup;
+        }
+        else if (EqualsI(arg, L"--stop-watcher"))
+        {
+            options.mode = Options::Mode::StopWatcher;
         }
         else if (EqualsI(arg, L"--restore"))
         {
@@ -169,6 +174,8 @@ int RunApplication(HINSTANCE instance, int showCommand, const Options& options)
         return app.RunCleanup();
     case Options::Mode::Restore:
         return app.RunRestoreAll();
+    case Options::Mode::StopWatcher:
+        return app.RunStopWatcher();
     case Options::Mode::SelfTest:
         return app.RunSelfTest();
     case Options::Mode::Watch:

@@ -4,32 +4,35 @@ Notable changes, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version numbers follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [Unreleased]
+## [0.1.1] - 2026-11-07
 
 ### Fixed
 
-- **Upgrading while the watcher runs left a zombie process.** Windows refuses to replace
-  a running executable, so Setup asks Restart Manager to close the app first; the tray
-  window did not handle `WM_CLOSE`, and `DefWindowProc` destroyed the window without
+- **Upgrading while the watcher runs no longer leaves a zombie process.** Windows cannot
+  replace a running executable, so Setup asks Restart Manager to close the app; the tray
+  window answered `WM_CLOSE` with `DefWindowProc`, which destroyed the window without
   ending the process. The survivor kept the `Local\NoUninstallIcon.Background` mutex, so
-  the icon was gone, hiding went on invisibly, and no new watcher could start
-  (`ERROR_ALREADY_EXISTS`) — even the "launch after install" path could not bring one
-  back. The tray window now handles `WM_CLOSE` and `WM_QUERYENDSESSION` by removing the
-  icon, stopping the watcher threads and exiting.
+  the icon was gone, hiding continued invisibly, and no new watcher could start
+  (`ERROR_ALREADY_EXISTS`) — even "launch after install" could not bring one back. The
+  tray window now ignores `WM_CLOSE` outright, and leaves only when asked properly.
+
+### Added
+
+- `--stop-watcher`: asks a running watcher to leave without touching `state.dat`. The
+  request travels through the shared section a mode change already uses, so it reaches
+  watchers built before the switch existed, and the stored mode survives unchanged.
 
 ### Changed
 
-- The installer declares `AppMutex` for the window's and the watcher's single-instance
-  mutexes, so Setup notices a running instance before it touches the executable and asks
-  for it to be closed, instead of failing on a file that is in use.
+- The installer stops a running instance before it copies anything: it runs
+  `--stop-watcher` when the installed build supports it, and otherwise offers to force
+  the process closed — silently, or with a confirmation prompt in an interactive install.
+  Without this, an upgrade over a running watcher could not replace the executable.
 
 ### Notes
 
-- Deferred to the next version on purpose: no one upgrades *to* 0.1.0, so the defect
-  cannot be reached from the first release.
-- The fix cannot rescue a watcher belonging to 0.1.0, which knows no way to exit except a
-  mode change. Going from 0.1.0 to a later version therefore still needs the watcher
-  stopped first — switch the mode to *Off*, or end the process in Task Manager.
+- The forced close is a fallback for 0.1.0, whose watcher knows no other way out. From
+  0.1.1 onwards the stop is always the graceful kind, and the stored mode is untouched.
 
 ## [0.1.0] - 2026-11-03
 

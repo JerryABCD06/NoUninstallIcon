@@ -32,8 +32,8 @@ IDR_LANG_PTBR    RCDATA "lang\\pt-BR.lang"
 IDR_LANG_IT      RCDATA "lang\\it.lang"
 
 1 VERSIONINFO
-FILEVERSION     0,1,0,0
-PRODUCTVERSION  0,1,0,0
+FILEVERSION     0,1,1,0
+PRODUCTVERSION  0,1,1,0
 FILEOS          VOS_NT_WINDOWS32
 FILETYPE        VFT_APP
 BEGIN
@@ -47,11 +47,11 @@ BEGIN
       // is set to, so they stay English: a Chinese name there would look wrong
       // for every user who runs the program in any other language.
       VALUE "FileDescription",  "No Uninstall Icon"
-      VALUE "FileVersion",      "0.1.0.0"
+      VALUE "FileVersion",      "0.1.1.0"
       VALUE "InternalName",     "NoUninstallIcon"
       VALUE "OriginalFilename", "NoUninstallIcon.exe"
       VALUE "ProductName",      "No Uninstall Icon"
-      VALUE "ProductVersion",   "0.1.0.0"
+      VALUE "ProductVersion",   "0.1.1.0"
       VALUE "LegalCopyright",   "MIT License, 王云正"
     END
   END

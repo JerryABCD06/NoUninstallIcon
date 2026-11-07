@@ -1202,3 +1202,39 @@ bool App::WriteDump(const std::wstring& path)
     if (slash != std::wstring::npos && slash > 0) EnsureDirectory(path.substr(0, slash));
     return WriteWholeFileAtomic(path, Narrow(text));
 }
+
+namespace {
+
+bool WatcherRunning()
+{
+    HANDLE slot = OpenMutexW(SYNCHRONIZE, FALSE, L"Local\\NoUninstallIcon.Background");
+    if (!slot) return false;
+    CloseHandle(slot);
+    return true;
+}
+
+}  // namespace
+
+int App::RunStopWatcher()
+{
+    // A lossless stop. The request travels through the shared section that a mode
+    // change already uses, so nothing is written to state.dat: the stored mode is
+    // whatever it was, and the next launch or sign-in starts a watcher again.
+    if (!session::Init()) return 1;
+    if (!WatcherRunning()) return 0;  // nothing to stop, and that is success
+
+    LogLine(L"stop: asking the watcher to leave");
+    session::Publish(session::kModeStopRequest);
+
+    // The watcher removes its tray icon and joins its worker threads before it
+    // exits, so the mutex disappearing is the signal that it really finished
+    // rather than merely stopped looking.
+    for (int tick = 0; tick < 40; ++tick)
+    {
+        if (!WatcherRunning()) return 0;
+        Sleep(100);
+    }
+
+    LogLine(L"stop: the watcher was still running after 4 seconds");
+    return 1;
+}
