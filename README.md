@@ -1,5 +1,7 @@
 # No Uninstall Icon (我不需要卸载图标)
 
+**English** | [简体中文](README.zh-CN.md)
+
 A small, dependency-free Windows utility that hides selected Start menu shortcuts by
 setting the `FILE_ATTRIBUTE_HIDDEN` bit on the shortcut file.
 
@@ -363,6 +365,7 @@ the end of `build.bat` and reports any file whose key set differs from `en.lang`
 primary subtag, then English. Adding a language is one `.lang` file plus one `RCDATA`
 line: the table is discovered at startup, no code change needed. The picker starts
 with a System entry that follows the current locale on every launch.
+
 ## About dialog
 
 The **About** command on the right of the header opens an in-window dialog — a Fluent
