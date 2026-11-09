@@ -1,6 +1,6 @@
 # No Uninstall Icon (我不需要卸载图标)
 
-**English** | [简体中文](README.zh-CN.md)
+**English** | [简体中文](README.zh-Hans.md)
 
 A small, dependency-free Windows utility that hides selected Start menu shortcuts by
 setting the `FILE_ATTRIBUTE_HIDDEN` bit on the shortcut file.
