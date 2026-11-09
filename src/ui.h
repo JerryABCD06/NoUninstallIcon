@@ -138,7 +138,10 @@ private:
     ID2D1Bitmap* IconFor(const std::wstring& path, int size);
 
     void SetSearchFocus(bool focused);
-    void SetFocusTarget(FocusTarget target);
+    // adoptFirstRow is for keyboard entry: with no row pointed at yet, take row 0
+    // and scroll it into view. Mouse paths pass false, because fabricating a row
+    // and scrolling to it moves the list out from under the click being handled.
+    void SetFocusTarget(FocusTarget target, bool adoptFirstRow = false);
     void CycleFocus(bool backwards);
     void HandleSearchKey(WPARAM key, bool ctrl, bool shift);
     void HandleListKey(WPARAM key);

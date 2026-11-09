@@ -8,6 +8,16 @@ Notable changes, newest first. The format follows
 
 ### Fixed
 
+- **Clicking a row after scrolling no longer jumps the list to the top.** Every click that
+  was not on the search box went through `SetFocusTarget(List)`, whose "no row yet" branch
+  invented row 0 and scrolled it into view. With no row focused — the normal state after
+  the wheel or a scrollbar drag — the first click therefore moved the view before the hit
+  test ran, and toggled whatever row ended up under the pointer. That branch now runs only
+  for keyboard entry (Tab, and Down from the search field), which is where revealing the
+  focused row belongs. Measured with two builds scrolling five notches and clicking: the
+  old one toggled `Shortcut 02`, the fixed one toggled `Shortcut 14`, the row actually
+  under the pointer.
+
 - **Upgrading while the watcher runs no longer leaves a zombie process.** Windows cannot
   replace a running executable, so Setup asks Restart Manager to close the app; the tray
   window answered `WM_CLOSE` with `DefWindowProc`, which destroyed the window without

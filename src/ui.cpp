@@ -1367,8 +1367,12 @@ void MainWindow::OnLeftDown(int x, int y)
     int row = RowAtPoint(fy, nullptr);
     if (row >= 0)
     {
-        SetFocusTarget(FocusTarget::List);
+        // Take the row first, then the focus. SetFocusTarget's "no row yet" branch
+        // scrolls to row 0, and running it while focusRow_ is still -1 moved the
+        // list out from under the click being handled: the row under the pointer
+        // changed before the press finished.
         focusRow_ = row;
+        SetFocusTarget(FocusTarget::List);
         // The whole row toggles; the checkbox is just its indicator.
         if (model_)
         {
@@ -1591,8 +1595,9 @@ void MainWindow::HandleSearchKey(WPARAM key, bool ctrl, bool shift)
         Invalidate();
         return;
     case VK_DOWN:
-        // Down from the field moves into the result list, like a combo box.
-        SetFocusTarget(FocusTarget::List);
+        // Down from the field moves into the result list, like a combo box; that
+        // is keyboard entry, so the list may adopt and reveal its first row.
+        SetFocusTarget(FocusTarget::List, true);
         return;
     case VK_BACK:
         if (HasSelection())
@@ -1742,7 +1747,7 @@ void MainWindow::HandleListKey(WPARAM key)
     }
 }
 
-void MainWindow::SetFocusTarget(FocusTarget target)
+void MainWindow::SetFocusTarget(FocusTarget target, bool adoptFirstRow)
 {
     focus_ = target;
     searchFocused_ = (target == FocusTarget::Search);
@@ -1761,7 +1766,7 @@ void MainWindow::SetFocusTarget(FocusTarget target)
 
     if (target != FocusTarget::Search) KillTimer(hwnd_, 3);
     if (target != FocusTarget::List) lastAnnouncedGroup_ = -1;
-    if (target == FocusTarget::List && model_ && model_->RowCount() > 0 && focusRow_ < 0)
+    if (adoptFirstRow && target == FocusTarget::List && model_ && model_->RowCount() > 0 && focusRow_ < 0)
     {
         focusRow_ = 0;
         EnsureVisible(focusRow_);
@@ -1786,7 +1791,9 @@ void MainWindow::CycleFocus(bool backwards)
         index = (index + (backwards ? count - 1 : 1)) % count;
         if (IsFocusTargetAvailable(order[index]))
         {
-            SetFocusTarget(order[index]);
+            // Keyboard entry into the list: give it a row and bring that row into
+            // view, which is what Tab is expected to do.
+            SetFocusTarget(order[index], order[index] == FocusTarget::List);
             return;
         }
     }
