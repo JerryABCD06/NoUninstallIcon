@@ -4,7 +4,7 @@ Notable changes, newest first. The format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and the version numbers follow
 [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.1] - 2026-11-07
+## [0.1.1] - 2026-11-09
 
 ### Fixed
 
@@ -41,10 +41,11 @@ Notable changes, newest first. The format follows
 
 ### Changed
 
-- The installer stops a running instance before it copies anything: it runs
-  `--stop-watcher` when the installed build supports it, and otherwise offers to force
-  the process closed — silently, or with a confirmation prompt in an interactive install.
-  Without this, an upgrade over a running watcher could not replace the executable.
+- The installer stops a running instance before it copies anything: `--stop-watcher`
+  when the installed build supports it, then `WM_CLOSE` to the window, then — only if
+  something is still alive — a prompt before forcing it closed. Declining cancels the
+  installation. Silent installs force it closed without asking, because there is nobody to
+  ask.
 
 ### Notes
 
