@@ -18,6 +18,13 @@ Notable changes, newest first. The format follows
   old one toggled `Shortcut 02`, the fixed one toggled `Shortcut 14`, the row actually
   under the pointer.
 
+- **Setup no longer offers to leave the running app alone.** Inno's Restart Manager
+  dialog has a "do not close the applications" button, and choosing it let Setup copy over
+  a locked executable and fail at that point. `CloseApplications=no` turns that dialog off;
+  `PrepareToInstall` asks the watcher to leave, closes the open window politely, and only
+  prompts before a forced close — answering *no* now cancels the installation rather than
+  carrying on.
+
 - **Upgrading while the watcher runs no longer leaves a zombie process.** Windows cannot
   replace a running executable, so Setup asks Restart Manager to close the app; the tray
   window answered `WM_CLOSE` with `DefWindowProc`, which destroyed the window without

@@ -46,7 +46,11 @@ SetupLogging=yes
 ; /CURRENTUSER installs per user without elevation, which is a useful fallback
 ; when an elevated install cannot write to %TEMP%.
 PrivilegesRequiredOverridesAllowed=commandline
-CloseApplications=yes
+; Restart Manager is turned off: its dialog offers "do not close the applications",
+; which would let an installation continue against a locked executable and fail at
+; copy time. [Code] stops the app itself and, when that is not possible, asks before
+; force-closing or cancels the installation.
+CloseApplications=no
 RestartApplications=no
 AllowNoIcons=yes
 MinVersion=10.0.17763
@@ -119,6 +123,54 @@ ko.ForceClosePrompt=%1을(를) 안전하게 종료할 수 없습니다. 강제�
 pt_BR.ForceClosePrompt=Não foi possível encerrar %1 com segurança. Forçar o encerramento?
 it.ForceClosePrompt=Impossibile chiudere %1 correttamente. Forzarne la chiusura?
 
+StillRunning=%1 is still running. Close it, then click Retry.
+en.StillRunning=%1 is still running. Close it, then click Retry.
+zh_Hans.StillRunning=%1 仍在运行。请关闭它，然后点击“重试”。
+zh_Hant.StillRunning=%1 仍在執行。請關閉它，然後按一下「重試」。
+ja.StillRunning=%1 はまだ実行中です。終了してから［再試行］をクリックしてください。
+de.StillRunning=%1 läuft noch. Schließen Sie es und klicken Sie dann auf „Wiederholen“.
+fr.StillRunning=%1 est toujours en cours d'exécution. Fermez-le, puis cliquez sur « Réessayer ».
+es.StillRunning=%1 sigue en ejecución. Ciérrelo y haga clic en «Reintentar».
+ru.StillRunning=%1 всё ещё выполняется. Закройте его и нажмите «Повторить».
+ko.StillRunning=%1이(가) 아직 실행 중입니다. 종료한 후 [다시 시도]를 클릭하세요.
+pt_BR.StillRunning=%1 ainda está em execução. Feche-o e clique em "Tentar novamente".
+it.StillRunning=%1 è ancora in esecuzione. Chiudilo e fai clic su «Riprova».
+en.ForceClosePrompt=%1 cannot be shut down safely. Force it to close?
+en.ForceClosePrompt=%1 cannot be shut down safely. Force it to close?
+zh_Hans.ForceClosePrompt=无法安全退出 %1，是否强制关闭？
+zh_Hant.ForceClosePrompt=無法安全退出 %1，是否強制關閉？
+ja.ForceClosePrompt=%1 を安全に終了できません。強制終了しますか？
+de.ForceClosePrompt=%1 kann nicht sauber beendet werden. Erzwungen beenden?
+fr.ForceClosePrompt=Impossible d'arrêter %1 proprement. Forcer la fermeture ?
+es.ForceClosePrompt=No se puede cerrar %1 de forma segura. ¿Forzar el cierre?
+ru.ForceClosePrompt=Не удалось безопасно закрыть %1. Принудительно завершить?
+ko.ForceClosePrompt=%1을(를) 안전하게 종료할 수 없습니다. 강제로 종료할까요?
+pt_BR.ForceClosePrompt=Não foi possível encerrar %1 com segurança. Forçar o encerramento?
+it.ForceClosePrompt=Impossibile chiudere %1 correttamente. Forzarne la chiusura?
+
+StillRunning=%1 is still running. Close it, then click Retry.
+en.StillRunning=%1 is still running. Close it, then click Retry.
+zh_Hans.StillRunning=%1 仍在运行。请关闭它，然后点击“重试”。
+zh_Hant.StillRunning=%1 仍在執行。請關閉它，然後按一下「重試」。
+ja.StillRunning=%1 はまだ実行中です。終了してから［再試行］をクリックしてください。
+de.StillRunning=%1 läuft noch. Schließen Sie es und klicken Sie dann auf „Wiederholen“.
+fr.StillRunning=%1 est toujours en cours d'exécution. Fermez-le, puis cliquez sur « Réessayer ».
+es.StillRunning=%1 sigue en ejecución. Ciérrelo y haga clic en «Reintentar».
+ru.StillRunning=%1 всё ещё выполняется. Закройте его и нажмите «Повторить».
+ko.StillRunning=%1이(가) 아직 실행 중입니다. 종료한 후 [다시 시도]를 클릭하세요.
+pt_BR.StillRunning=%1 ainda está em execução. Feche-o e clique em "Tentar novamente".
+it.StillRunning=%1 è ancora in esecuzione. Chiudilo e fai clic su «Riprova».
+zh_Hans.ForceClosePrompt=无法安全退出 %1，是否强制关闭？
+zh_Hant.ForceClosePrompt=無法安全退出 %1，是否強制關閉？
+ja.ForceClosePrompt=%1 を安全に終了できません。強制終了しますか？
+de.ForceClosePrompt=%1 kann nicht sauber beendet werden. Erzwungen beenden?
+fr.ForceClosePrompt=Impossible d'arrêter %1 proprement. Forcer la fermeture ?
+es.ForceClosePrompt=No se puede cerrar %1 de forma segura. ¿Forzar el cierre?
+ru.ForceClosePrompt=Не удалось безопасно закрыть %1. Принудительно завершить?
+ko.ForceClosePrompt=%1을(를) 안전하게 종료할 수 없습니다. 강제로 종료할까요?
+pt_BR.ForceClosePrompt=Não foi possível encerrar %1 com segurança. Forçar o encerramento?
+it.ForceClosePrompt=Impossibile chiudere %1 correttamente. Forzarne la chiusura?
+
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
@@ -142,6 +194,16 @@ Filename: "{app}\{#AppExeName}"; Description: "{cm:LaunchProgram,{cm:AppName}}";
 Type: filesandordirs; Name: "{app}"
 
 [Code]
+const
+  // Fixed in ui.cpp: the window class the program registers.
+  MainWindowClass = 'NoUninstallIcon.MainWindow';
+  WM_CLOSE = $0010;
+
+function FindWindowW(ClassName, WindowName: String): THandle;
+  external 'FindWindowW@user32.dll stdcall';
+function PostMessageW(Window: THandle; Msg: Cardinal; WParam, LParam: LongInt): Boolean;
+  external 'PostMessageW@user32.dll stdcall';
+
 function InitializeSetup(): Boolean;
 begin
   Result := True;
@@ -242,39 +304,87 @@ begin
   Sleep(1500);
 end;
 
-procedure EnsureWatcherStopped();
+// The window is an ordinary application and closes on request, so there is no reason
+// to kill it. The class name is fixed in ui.cpp.
+procedure CloseAppWindow();
+var
+  Attempt: Integer;
+  Window: THandle;
+begin
+  Window := FindWindowW(MainWindowClass, '');
+  if Window = 0 then
+    Exit;
+
+  Log('Asking the open window to close.');
+  PostMessageW(Window, WM_CLOSE, 0, 0);
+  for Attempt := 1 to 30 do
+  begin
+    Sleep(100);
+    if FindWindowW(MainWindowClass, '') = 0 then
+      Break;
+  end;
+end;
+
+function AppStillRunning(): Boolean;
+begin
+  // The watcher holds the mutex; the window holds the image file. Either one blocks
+  // the copy that follows.
+  Result := CheckForMutexes('Local\NoUninstallIcon.Background') or
+            (FindWindowW(MainWindowClass, '') <> 0);
+end;
+
+// False means "the app is still running and the user would not have it forced".
+// The caller cancels the installation rather than copying over a locked executable,
+// which is what Inno's own Restart Manager dialog allowed.
+function EnsureAppStopped(): Boolean;
 var
   ExePath: String;
 begin
+  Result := True;
   ExePath := ExpandConstant('{app}\{#AppExeName}');
   if not FileExists(ExePath) then
     Exit;  // a first install has no running copy to worry about
 
   if CanStopSafely(ExePath) then
     AskWatcherToLeave(ExePath);
+  CloseAppWindow();
 
-  if not CheckForMutexes('Local\NoUninstallIcon.Background') then
-    Exit;  // it left, or was never there
+  if not AppStillRunning() then
+    Exit;
 
   if WizardSilent then
   begin
     // Nobody to ask; an unattended upgrade has to make progress on its own.
-    Log('The watcher is still running and Setup is silent; forcing it closed.');
+    Log('The app is still running and Setup is silent; forcing it closed.');
     ForceCloseRunningCopies();
+    Result := not AppStillRunning();
     Exit;
   end;
 
   if MsgBox(FmtMessage(ExpandConstant('{cm:ForceClosePrompt}'), [ExpandConstant('{cm:AppName}')]),
             mbConfirmation, MB_YESNO) = IDYES then
-    ForceCloseRunningCopies()
+  begin
+    ForceCloseRunningCopies();
+    Result := not AppStillRunning();
+    if not Result then
+      Log('The app is still running even after the forced close.');
+  end
   else
-    Log('The user declined to force the running instance closed.');
+  begin
+    Log('The user declined to force the running instance closed; cancelling Setup.');
+    Result := False;
+  end;
+end;
+
+function PrepareToInstall(var NeedsRestart: Boolean): String;
+begin
+  Result := '';
+  if not EnsureAppStopped() then
+    Result := FmtMessage(ExpandConstant('{cm:StillRunning}'), [ExpandConstant('{cm:AppName}')]);
 end;
 
 procedure CurStepChanged(CurStep: TSetupStep);
 begin
-  if CurStep = ssInstall then
-    EnsureWatcherStopped();
   if CurStep = ssPostInstall then
     RemoveStaleUninstallShortcut();
 end;

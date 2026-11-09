@@ -115,8 +115,13 @@ and the Apps & Features entry. The two constraints that come with this:
   would move an upgrade to a second folder when the language changes.
 
 **It stops a running instance before it copies anything.** A running executable cannot
-be replaced, so `CurStepChanged(ssInstall)` runs `NoUninstallIcon.exe --stop-watcher`
-when the installed build is 0.1.1 or newer. That switch publishes a request over the
+be replaced, so `PrepareToInstall` runs `NoUninstallIcon.exe --stop-watcher` when the
+installed build is 0.1.1 or newer, then closes the open window with `WM_CLOSE` — the window
+is an ordinary application and has no reason to be killed. `CloseApplications=no` keeps
+Inno's own Restart Manager dialog out of the way; it offers "do not close the
+applications", which would let Setup continue against a locked executable and fail later.
+If anything is still running after the polite attempts, Setup asks before forcing it, and
+declining cancels the installation instead of continuing. That switch publishes a request over the
 shared section and writes nothing to `state.dat`, so the stored mode survives the
 upgrade. Builds older than 0.1.1 do not know the switch — and an unknown argument makes
 them open the window — so the installer checks the installed file's version first and
